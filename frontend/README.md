@@ -1,44 +1,28 @@
-# frontend
+# Expedia Lite Frontend
 
-This template should help get you started developing with Vue 3 in Vite.
+This directory contains the Expedia Lite interface, built with Vue 3 and Vite. It sends hotel-name searches to the Python backend through the FastAPI `/api/hotels/search` endpoint and renders the joined hotel and trip records returned by the API.
 
-## Recommended IDE Setup
+The Vite development server proxies `/api` requests to `http://127.0.0.1:8000`, so the FastAPI backend must also be running for searches to succeed.
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## Project setup
 
-## Recommended Browser Setup
-
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+From this directory, install the locked project dependencies:
 
 ```sh
-npm install
+npm ci
 ```
 
-### Compile and Hot-Reload for Development
+## Development server
 
 ```sh
 npm run dev
 ```
 
-### Compile and Minify for Production
-
-```sh
-npm run build
-```
-
-### Lint with [ESLint](https://eslint.org/)
+## Verification
 
 ```sh
 npm run lint
+npm run build
 ```
+
+See the project-root `README.md` for backend setup, the complete API contract, and integrated verification guidance.

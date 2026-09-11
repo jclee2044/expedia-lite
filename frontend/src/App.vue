@@ -60,7 +60,10 @@ async function submitSearch() {
 
 <template>
   <main>
-    <h1>Hotel Search</h1>
+    <header>
+      <h1>Expedia Lite</h1>
+      <p>Hotel Search</p>
+    </header>
 
     <form @submit.prevent="submitSearch">
       <label for="hotel-name">Hotel name</label>

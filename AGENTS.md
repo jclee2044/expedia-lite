@@ -56,3 +56,36 @@
 - Never include secrets, tokens, private URLs, private traveler data, or unnecessary conversation in a handoff.
 - Before resuming, verify `handoffs/current.md` against the Git root, branch, HEAD, working tree, named files, and recorded checks.
 - Do not edit, install dependencies, change Git state, or manage services while reconstructing a handoff; first report discrepancies and obtain approval for the next step.
+
+## Course macros
+
+### AutoLoop
+
+Trigger: When the user says **"AutoLoop"**, perform a bounded fix-and-verify loop.
+
+1. Read `AGENTS.md`, `README.md`, and the relevant verification instructions.
+2. State the acceptance check for the current task.
+3. Run the smallest relevant check.
+4. If the check fails for an in-scope source-code reason, inspect the evidence, make the smallest relevant correction, and rerun the check.
+5. Repeat for no more than five correction cycles.
+6. Stop early and ask for direction if the next action requires a dependency change, machine-level permission, destructive action, an unrelated process to be stopped, or broader scope.
+7. Report every cycle, the final evidence, and anything not verified.
+
+### SmokeTest
+
+Trigger: When the user says **"Run the smoke test"**, verify the working application without changing source code or dependency declarations.
+
+1. Read `AGENTS.md`, `README.md`, and `docs/verification.md`.
+2. Run the backend pytest suite.
+3. Run the frontend lint and production build.
+4. Check the intended backend and frontend ports. Never stop an unrelated process.
+5. Start only the backend and frontend processes needed for this test in Codex-managed terminals.
+6. Verify a successful `Harbor` API search and the documented blank-query error.
+7. Use automated browser control to search for `Harbor` and confirm that one hotel and two stays appear.
+8. Confirm the no-results and blank-search UI states, check for application errors, and report any behavior that could not be tested.
+9. Unless the user asks to keep the app running, stop only the processes created by this smoke test.
+10. Report concise evidence from tests, builds, endpoints, the automated UI interaction, and service cleanup.
+
+### Combined trigger
+
+When the user says **"AutoLoop: run the smoke test"**, run the SmokeTest macro. If an in-scope check fails, use the AutoLoop rules to make the smallest correction and repeat the smoke test until it passes, five correction cycles are exhausted, or a stopping condition is reached.

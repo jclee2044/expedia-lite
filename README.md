@@ -4,12 +4,14 @@ Expedia Lite is a small local travel-booking prototype inspired by Expedia. The 
 
 ## Architecture
 
-- **Vue interface:** presents hotel search, booking, confirmation, and history views.
+- **Vue interface:** currently presents hotel search and its matching hotel stays. Booking, confirmation, and history views remain planned work.
 - **FastAPI API:** owns HTTP and JSON request/response handling.
-- **Python domain logic:** contains framework-free validation, filtering, ranking, pricing, and booking rules.
+- **Python domain logic:** currently contains framework-free CSV loading, validation, hotel-name matching, record joining, and stay-price calculation. Booking rules remain planned work.
 - **Data and persistence:** `data/` contains synthetic hotels, users, trips, and bookings. Part 1 reads these CSV files; Part 2 will use them as initial SQLite records and persist application changes across restarts.
 
-Vue and FastAPI will communicate through a documented JSON contract. Presentation code stays separate from frontend request code, and FastAPI routes stay separate from domain logic.
+Vue and FastAPI communicate through the documented JSON contract below. Presentation code stays separate from frontend request code, and FastAPI routes stay separate from domain logic.
+
+For hotel search, the Python backend reads `data/hotels.csv` and `data/trips.csv`. It indexes hotel records by `hotel_id`, connects each trip to its hotel through that shared field, and rejects a trip that refers to an unknown hotel. FastAPI serializes the matching joined records as JSON, and the Vue frontend requests and displays them.
 
 ## Main directories
 
@@ -17,7 +19,7 @@ Vue and FastAPI will communicate through a documented JSON contract. Presentatio
 backend/   FastAPI API, framework-free Python logic, and backend tests
 frontend/  Vue 3 application and frontend tooling
 data/      Synthetic hotel, trip, user, and booking CSV data with its schema guide
-docs/      Assignment description and visual references
+docs/      Design, verification guidance, assignment description, and visual references
 handoffs/  Cross-session procedure and optional current handoff
 prompts/   Reserved for selected project prompts
 ```
@@ -128,8 +130,9 @@ For an integrated browser check, open `http://127.0.0.1:5173`, search for `Harbo
 ## Durable context and handoffs
 
 - `AGENTS.md` contains standing project and permission rules.
-- `docs/` contains design, assignment, and verification evidence as those artifacts are added.
-- `prompts/` preserves selected major instructions that shaped the project.
+- `docs/design-pipeline.md` records the implemented frontend, FastAPI, and backend responsibilities.
+- `docs/verification.md` records the focused checks for the current hotel-search scope.
+- `prompts/` preserves the selected setup and hotel-search instructions that shaped the project.
 - `handoffs/create-handoff.md` contains the reusable prompts for creating and verifying a handoff.
 - `handoffs/current.md` should exist only when a current continuation note has been created or refreshed.
 
