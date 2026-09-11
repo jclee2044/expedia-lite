@@ -17,20 +17,28 @@ When "hotel" is entered:
 - Expected result: Each of the hotels appear.
 - Observed result: Each of the hotels appear.
 
+![Hotel search showing all matching hotels](docs/test-screenshots/hotel.png)
+
 When "Harbor" or "harbor" is entered:
 
 - Expected result: Only the Harbor Lantern Hotel appears.
 - Observed result: Only the Harbor Lantern Hotel appears.
+
+![Harbor search showing only Harbor Lantern Hotel](docs/test-screenshots/Harbor.png)
 
 When "CAPITOL" is entered:
 
 - Expected result: Only the Capitol Grove Hotel appears.
 - Observed result: Only the Capitol Grove Hotel appears.
 
+![CAPITOL search showing only Capitol Grove Hotel](docs/test-screenshots/CAPITOL.png)
+
 When "nonexistent" is entered:
 
 - Expected result: No results are returned, and a clear message is shown that no results match.
 - Observed result: No results are returned, and a clear message is shown that no results match.
+
+![Nonexistent search showing the no-results message](docs/test-screenshots/nonexistent.png)
 
 ## Project context and next steps
 
