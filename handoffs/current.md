@@ -18,9 +18,9 @@ The current milestone is a local hotel-name search. Vue owns the interface, Fast
 
 - Root: `/Users/jlee/Desktop/psu4/ist402/a1_expedia_lite`
 - Branch/upstream: `main` tracking `origin/main`
-- HEAD and `origin/main`: `71289a2 feat: add basic hotel search`
+- The implemented hotel-search checkpoint is `71289a2 feat: add basic hotel search`.
 - `basic-search` also points to `71289a2`.
-- The working tree is intentionally not clean. It contains name/documentation consistency updates in `AGENTS.md`, `README.md`, `frontend/README.md`, `frontend/package.json`, `frontend/package-lock.json`, and `frontend/src/App.vue`, plus the new design, verification, and selected-prompt files. This handoff is also refreshed by the current work.
+- The Part 1 report and name/documentation consistency checkpoint has been committed and pushed to `main`. Verify the current tip with `git rev-parse HEAD` before relying on a copied commit ID.
 
 ## Checks observed on 2026-09-11
 
@@ -67,6 +67,6 @@ Local HTTP checks confirmed that `http://127.0.0.1:5173/` serves the Vue page an
 
 ## Next task
 
-Review the current diff, then create and push a documentation/name-consistency commit when approved. After that checkpoint, define the booking/persistence contract before implementing the first booking flow.
+Define the booking/persistence contract before implementing the first booking flow.
 
 Read `AGENTS.md`, `README.md`, `docs/design-pipeline.md`, `docs/verification.md`, and this handoff first. Treat the repository and fresh checks as authoritative if this note becomes stale.
