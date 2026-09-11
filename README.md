@@ -1,6 +1,6 @@
 # Expedia Lite
 
-Expedia Lite is a small local travel-booking prototype inspired by Expedia. It will let a user browse synthetic hotel data, make a simulated booking, and review booking history. The repository currently contains the verified development scaffold; project-specific application behavior has not been implemented.
+Expedia Lite is a small local travel-booking prototype inspired by Expedia. The backend currently supports hotel-name search over the supplied synthetic hotel and trip data. Booking and history behavior remains planned work.
 
 ## Architecture
 
@@ -54,7 +54,51 @@ cd frontend
 npm run dev
 ```
 
-The backend run command remains TODO until the first FastAPI application module exists.
+The Vue development server runs at `http://127.0.0.1:5173` and proxies `/api` requests to the backend at `http://127.0.0.1:8000`. Start both servers to use hotel search. The current search screen intentionally uses plain semantic HTML with only a thin outline and minimal padding on the results table.
+
+From the project root, start the FastAPI development server:
+
+```bash
+backend/.venv/bin/python -m uvicorn backend.app.main:app --reload
+```
+
+The API is then available at `http://127.0.0.1:8000`, with interactive documentation at `http://127.0.0.1:8000/docs`.
+
+## Hotel search API contract
+
+Send a `GET` request to `/api/hotels/search` with a required `name` query parameter. Matching trims surrounding whitespace and uses a case-insensitive partial match against `hotels.csv`'s `hotel_name`. The backend joins matching hotels to `trips.csv` using `hotel_id`, returning one result row per offered stay in CSV order.
+
+Example request:
+
+```http
+GET /api/hotels/search?name=Harbor
+```
+
+Example response:
+
+```json
+{
+  "query": "Harbor",
+  "hotel_count": 1,
+  "results": [
+    {
+      "hotel_id": "H001",
+      "hotel_name": "Harbor Lantern Hotel",
+      "city": "Boston",
+      "state": "MA",
+      "trip_id": "T001",
+      "trip_name": "Boston Harbor Weekend",
+      "check_in": "2026-09-18",
+      "check_out": "2026-09-20",
+      "nights": 2,
+      "nightly_rate_usd": 150.0,
+      "stay_price_usd": 300.0
+    }
+  ]
+}
+```
+
+`hotel_count` counts distinct hotels represented in `results`. A valid name with no matches returns status `200`, a count of `0`, and an empty `results` list. A whitespace-only name returns status `400` with `{"detail": "Enter a hotel name."}`. Omitting the required parameter returns FastAPI's status `422` validation response.
 
 ## Verify
 
@@ -62,6 +106,12 @@ From the project root, verify backend imports with the project environment:
 
 ```bash
 backend/.venv/bin/python -c "import sys, fastapi, pytest; print(sys.executable); print(fastapi.__version__); print(pytest.__version__)"
+```
+
+Run the backend domain and API tests:
+
+```bash
+backend/.venv/bin/python -m pytest backend/tests
 ```
 
 Verify the frontend:
@@ -73,7 +123,7 @@ npm run lint
 npm run build
 ```
 
-Browser verification remains TODO until the booking flows are implemented.
+For an integrated browser check, open `http://127.0.0.1:5173`, search for `Harbor`, and confirm that one hotel and two available stays appear. Search for an unknown hotel name to verify the no-results state, and submit a blank search to verify the input message.
 
 ## Durable context and handoffs
 
@@ -87,7 +137,6 @@ Before transferring work to a new thread or model, follow [the handoff procedure
 
 ## Open decisions
 
-- Define the Vue–FastAPI JSON endpoints, schemas, and error responses.
 - Define the safe one-time CSV-to-SQLite initialization behavior for Part 2.
 - Decide how to lock transitive Python dependency versions.
 - Finalize the two booking flows and their meaningful empty and failure states.
