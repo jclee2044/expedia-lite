@@ -4,16 +4,22 @@ from pathlib import Path
 
 import pytest
 
-from backend.app.database import (
+from backend.controllers.database import (
+    DEFAULT_DATABASE_PATH,
     DatabaseVersionError,
     allocate_booking_id,
     connect_database,
     create_schema,
     initialize_database,
 )
-from backend.app.seed import SeedDataError, SeedStateError
+from backend.controllers.seed import SeedDataError, SeedStateError
 
 DATA_DIRECTORY = Path(__file__).resolve().parents[2] / "data"
+
+
+def test_default_database_path_uses_backend_db_directory() -> None:
+    assert DEFAULT_DATABASE_PATH.parent.name == "db"
+    assert DEFAULT_DATABASE_PATH.name == "expedia_lite.sqlite3"
 
 
 def _counts(connection: sqlite3.Connection) -> dict[str, int]:

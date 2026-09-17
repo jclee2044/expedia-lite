@@ -7,14 +7,19 @@ end to end.
 ## Responsibilities
 
 - **Vue frontend:** `frontend/src/App.vue` owns the search, traveler, booking, history, and mutation state. `frontend/src/components/StayCard.vue`, `BookingConfirmation.vue`, and `BookingHistory.vue` own the reusable presentation structures identified in the visual references, while `frontend/src/assets/main.css` provides the responsive interface system. The modules in `frontend/src/api/` own HTTP requests. Vite proxies `/api` to FastAPI during development.
-- **FastAPI boundary:** `backend/app/main.py` initializes the configured SQLite database before serving requests, exposes search, user, booking, and history routes, provides request-scoped database connections, translates domain/database errors into HTTP responses, and validates JSON with `backend/app/schemas.py`.
-- **Python backend:** `backend/app/database.py` and `backend/app/seed.py` own SQLite connections, schema creation, seed validation, and one-time import. `backend/app/search.py` queries joined hotel and trip rows. `backend/app/bookings.py` owns user lookup, joined history, and transactional booking create, status-update, and delete behavior. These modules do not depend on FastAPI.
+- **View:** `frontend/src/App.vue` owns screen state and user actions. Components own reusable presentation, CSS owns responsive styling, and `frontend/src/api/` owns JSON requests.
+- **FastAPI boundary:** `backend/app/main.py` composes the application and initializes SQLite. `backend/app/routes.py` exposes thin search, user, booking, and history routes, supplies request-scoped connections, and translates controller errors. `backend/app/schemas.py` validates the public JSON contract.
+- **Models:** `backend/models/entities.py` defines framework-free Hotel, Trip, User, Booking, search, detail, and history objects. `backend/models/schema.py` defines their SQLite fields, constraints, and foreign-key relationships.
+- **Controllers:** `backend/controllers/database.py` owns connections and database operations; `seed.py` owns initial CSV validation/import; `search.py`, `users.py`, and `bookings.py` own their business operations. Controllers return Models and never raise FastAPI exceptions.
+
+The enforced dependency direction is `View -> FastAPI routes -> Controllers -> Models/SQLite`. Models do not import FastAPI or Controllers. Detailed contracts are recorded in [`mvc-contracts.md`](mvc-contracts.md).
 
 ## Data flow
 
 ```text
 search form -> frontend request module -> FastAPI route
-            -> Python SQLite/search logic -> response schema
+            -> search controller -> database controller -> Models/SQLite
+            -> response schema
             -> JSON -> Vue stay cards
 ```
 
@@ -26,11 +31,13 @@ refresh their displayed state from SQLite-backed responses.
 ## Booking and history data flow
 
 ```text
-Vue stay-card action -> FastAPI booking route -> framework-free booking service
-                  -> SQLite transaction/query -> joined response schema
+Vue stay-card action -> FastAPI booking route -> booking controller
+                  -> database controller transaction -> Booking model
+                  -> joined response schema
                   -> Vue confirmation view
 
-Vue My trips view -> FastAPI traveler-history route -> joined SQLite query
+Vue My trips view -> FastAPI traveler-history route -> user controller
+                  -> database controller joined query
                   -> populated, empty, loading, or error history state
 ```
 
@@ -54,7 +61,7 @@ delete behavior.
 CSV seed files --one-time import--> SQLite
                                       ^
                                       |
-Vue -> FastAPI -> framework-free repositories and booking logic
+Vue -> FastAPI routes -> Controllers -> Models/SQLite
 ```
 
 The existing hotel-search response stayed stable while its data source moved

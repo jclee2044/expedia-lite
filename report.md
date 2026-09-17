@@ -1,14 +1,21 @@
-# Expedia Lite — Part 1
+# Expedia Lite — Assignment 1
 
 ## Repository and commit
 
 GitHub repository URL: [https://github.com/jclee2044/expedia-lite](https://github.com/jclee2044/expedia-lite)
 
-Commit ID: `71289a22a9c2112d956716e9a6567d6b4468f047`
+Commit ID: `a67b2e1fe9c699ad0dddfd0441ac429520b4616f`
 
 ## Implementation
 
-The implemented flow lets a user search for hotels by name and view the matching offered stays. The Vue frontend owns the search form, loading and error states, and results table, while its request module sends the search to FastAPI. FastAPI owns the HTTP endpoint and JSON response validation, then delegates the work to framework-free Python backend logic. The backend reads `hotels.csv` and `trips.csv`, validates and joins their records through `hotel_id`, performs case-insensitive partial-name matching, and calculates the number of nights and total stay price for each result.
+The application follows Model–View–Controller boundaries. The Vue frontend is the View: it owns search, traveler selection, booking confirmation, history, cancellation, deletion, layout, components, and CSS. FastAPI routes are thin HTTP adapters that validate the JSON contract and call Controllers. Framework-free Models define Hotel, Trip, User, Booking, joined display records, and SQLite relationships. Controllers own database connections, seed import, reference checks, hotel search, user history, and transactional booking CRUD.
+
+The supplied CSV files seed SQLite once. After initialization, searches and booking operations use the persistent database. `Trip.hotel_id` connects trips to hotels; `Booking.user_id` and `Booking.trip_id` connect each booking to an existing user and trip. Controller contracts and the complete dependency flow are recorded in [`docs/mvc-contracts.md`](docs/mvc-contracts.md).
+
+```text
+Vue View -> FastAPI route -> Booking/Search/User Controller
+                            -> Database Controller -> Models/SQLite
+```
 
 ## Verification
 
@@ -40,6 +47,10 @@ When "nonexistent" is entered:
 
 ![Nonexistent search showing the no-results message](docs/test-screenshots/nonexistent.png)
 
-## Project context and next steps
+## MVC booking operation
 
-Project context is maintained in the [README](README.md), [project-specific agent instructions](AGENTS.md), [design note](docs/design-pipeline.md), [selected prompts](prompts/setup-prompts.md), and [current handoff](handoffs/current.md). The current implementation is limited to hotel search over read-only CSV data; booking creation, confirmation, booking history, SQLite initialization, and persistent storage are not yet implemented. The next task is to define the booking and persistence contract before implementing the first booking flow.
+The Book button is displayed by `frontend/src/components/StayCard.vue` and handled by `frontend/src/App.vue`. The View calls the booking API module, which sends `user_id` and `trip_id` to the FastAPI route. The booking controller checks both references, obtains an ID from the database controller, and saves a confirmed Booking in one transaction. The returned joined record is displayed by `BookingConfirmation.vue`. An invalid reference returns an error and the transaction creates no record.
+
+## Project context
+
+Project context is maintained in the [README](README.md), [project-specific agent instructions](AGENTS.md), [design note](docs/design-pipeline.md), [MVC contracts](docs/mvc-contracts.md), [selected prompts](prompts/setup-prompts.md), and [current handoff](handoffs/current.md). Hotel search, booking creation, confirmation, persistent history, cancellation, and guarded deletion are implemented through the documented MVC boundaries.

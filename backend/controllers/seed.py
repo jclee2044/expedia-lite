@@ -1,4 +1,4 @@
-"""Validate the supplied CSV files and seed a new SQLite database once."""
+"""Validate supplied CSV files and seed a new SQLite database once."""
 
 from __future__ import annotations
 
@@ -9,6 +9,9 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from typing import cast
+
+from backend.models import Booking, BookingStatus, Hotel, Trip, User
 
 SEED_VERSION = "1"
 VALID_BOOKING_STATUSES = {"confirmed", "cancelled"}
@@ -24,44 +27,13 @@ class SeedStateError(RuntimeError):
 
 
 @dataclass(frozen=True)
-class HotelSeed:
-    hotel_id: str
-    hotel_name: str
-    city: str
-    state: str
-    nightly_rate_cents: int
-
-
-@dataclass(frozen=True)
-class TripSeed:
-    trip_id: str
-    hotel_id: str
-    trip_name: str
-    check_in: str
-    check_out: str
-
-
-@dataclass(frozen=True)
-class UserSeed:
-    user_id: str
-    display_name: str
-
-
-@dataclass(frozen=True)
-class BookingSeed:
-    booking_id: str
-    user_id: str
-    trip_id: str
-    booked_on: str
-    status: str
-
-
-@dataclass(frozen=True)
 class SeedData:
-    hotels: list[HotelSeed]
-    trips: list[TripSeed]
-    users: list[UserSeed]
-    bookings: list[BookingSeed]
+    """Validated entity objects ready for initial persistence."""
+
+    hotels: list[Hotel]
+    trips: list[Trip]
+    users: list[User]
+    bookings: list[Booking]
 
 
 def _read_rows(path: Path, required_columns: set[str]) -> list[dict[str, str]]:
@@ -143,13 +115,13 @@ def load_seed_data(data_directory: Path) -> SeedData:
         {"booking_id", "user_id", "trip_id", "booked_on", "status"},
     )
 
-    hotels: list[HotelSeed] = []
+    hotels: list[Hotel] = []
     hotel_ids: set[str] = set()
     for row in hotel_rows:
         hotel_id = _record_id(row, "hotel_id", "H", "hotels.csv")
         _unique_id(hotel_id, hotel_ids, "hotel_id")
         hotels.append(
-            HotelSeed(
+            Hotel(
                 hotel_id=hotel_id,
                 hotel_name=_required_text(row, "hotel_name", "hotels.csv"),
                 city=_required_text(row, "city", "hotels.csv"),
@@ -161,7 +133,7 @@ def load_seed_data(data_directory: Path) -> SeedData:
             )
         )
 
-    trips: list[TripSeed] = []
+    trips: list[Trip] = []
     trip_ids: set[str] = set()
     for row in trip_rows:
         trip_id = _record_id(row, "trip_id", "T", "trips.csv")
@@ -171,37 +143,39 @@ def load_seed_data(data_directory: Path) -> SeedData:
             raise SeedDataError(
                 f"trip_id {trip_id} references unknown hotel_id {hotel_id}"
             )
-        check_in_text = _required_text(row, "check_in", "trips.csv")
-        check_out_text = _required_text(row, "check_out", "trips.csv")
-        check_in = _iso_date(check_in_text, f"trip_id {trip_id}")
-        check_out = _iso_date(check_out_text, f"trip_id {trip_id}")
+        check_in = _iso_date(
+            _required_text(row, "check_in", "trips.csv"), f"trip_id {trip_id}"
+        )
+        check_out = _iso_date(
+            _required_text(row, "check_out", "trips.csv"), f"trip_id {trip_id}"
+        )
         if check_out <= check_in:
             raise SeedDataError(
                 f"check_out must be after check_in for trip_id {trip_id}"
             )
         trips.append(
-            TripSeed(
+            Trip(
                 trip_id=trip_id,
                 hotel_id=hotel_id,
                 trip_name=_required_text(row, "trip_name", "trips.csv"),
-                check_in=check_in_text,
-                check_out=check_out_text,
+                check_in=check_in,
+                check_out=check_out,
             )
         )
 
-    users: list[UserSeed] = []
+    users: list[User] = []
     user_ids: set[str] = set()
     for row in user_rows:
         user_id = _record_id(row, "user_id", "U", "users.csv")
         _unique_id(user_id, user_ids, "user_id")
         users.append(
-            UserSeed(
+            User(
                 user_id=user_id,
                 display_name=_required_text(row, "display_name", "users.csv"),
             )
         )
 
-    bookings: list[BookingSeed] = []
+    bookings: list[Booking] = []
     booking_ids: set[str] = set()
     for row in booking_rows:
         booking_id = _record_id(row, "booking_id", "B", "bookings.csv")
@@ -216,18 +190,20 @@ def load_seed_data(data_directory: Path) -> SeedData:
             raise SeedDataError(
                 f"booking_id {booking_id} references unknown trip_id {trip_id}"
             )
-        booked_on = _required_text(row, "booked_on", "bookings.csv")
-        _iso_date(booked_on, f"booking_id {booking_id}")
+        booked_on = _iso_date(
+            _required_text(row, "booked_on", "bookings.csv"),
+            f"booking_id {booking_id}",
+        )
         status = _required_text(row, "status", "bookings.csv")
         if status not in VALID_BOOKING_STATUSES:
             raise SeedDataError(f"Invalid status for booking_id {booking_id}")
         bookings.append(
-            BookingSeed(
+            Booking(
                 booking_id=booking_id,
                 user_id=user_id,
                 trip_id=trip_id,
                 booked_on=booked_on,
-                status=status,
+                status=cast(BookingStatus, status),
             )
         )
 
@@ -303,8 +279,8 @@ def seed_database(connection: sqlite3.Connection, data_directory: Path) -> bool:
                     trip.trip_id,
                     trip.hotel_id,
                     trip.trip_name,
-                    trip.check_in,
-                    trip.check_out,
+                    trip.check_in.isoformat(),
+                    trip.check_out.isoformat(),
                 )
                 for trip in seed_data.trips
             ],
@@ -324,7 +300,7 @@ def seed_database(connection: sqlite3.Connection, data_directory: Path) -> bool:
                     booking.booking_id,
                     booking.user_id,
                     booking.trip_id,
-                    booking.booked_on,
+                    booking.booked_on.isoformat(),
                     booking.status,
                 )
                 for booking in seed_data.bookings

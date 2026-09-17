@@ -5,17 +5,15 @@ from pathlib import Path
 
 import pytest
 
-from backend.app.bookings import (
-    BookingValidationError,
-    RecordNotFoundError,
+from backend.controllers.bookings import (
     create_booking,
     delete_booking,
     get_booking,
-    list_user_bookings,
-    list_users,
     update_booking_status,
 )
-from backend.app.database import connect_database, initialize_database
+from backend.controllers.database import connect_database, initialize_database
+from backend.controllers.errors import BookingValidationError, RecordNotFoundError
+from backend.controllers.users import list_user_bookings, list_users
 
 DATA_DIRECTORY = Path(__file__).resolve().parents[2] / "data"
 

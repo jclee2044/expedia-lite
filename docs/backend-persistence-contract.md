@@ -30,7 +30,7 @@ a simulated booking, then retrieve that booking in a traveler's history.
 ## Runtime database
 
 The default database file will be
-`backend/instance/expedia_lite.sqlite3`. The `backend/instance/` directory and
+`backend/db/expedia_lite.sqlite3`. The `backend/db/` directory and
 SQLite runtime files must be ignored by Git. Tests must supply a temporary
 database path and must not read or write the default runtime database.
 

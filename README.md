@@ -5,8 +5,9 @@ Expedia Lite is a small local travel-booking prototype inspired by Expedia. The 
 ## Architecture
 
 - **Vue interface:** presents hotel search and matching stays through a mobile-first, reference-inspired card layout. It loads synthetic travelers, creates bookings through FastAPI, renders backend-sourced confirmation details, retrieves each traveler's persisted history, cancels confirmed bookings, and requires a second explicit action before permanent deletion.
-- **FastAPI API:** owns HTTP and JSON request/response handling for search, users, booking CRUD, and history.
-- **Python domain logic:** contains framework-free seed validation, SQLite hotel-name search, user lookup, joined booking history, booking transactions, and price calculation.
+- **FastAPI API:** acts as the HTTP boundary, validating JSON, calling controllers, and translating controller failures into responses.
+- **Python Models:** framework-free entity and read objects represent hotels, trips, users, bookings, search results, and their relationships. The model schema records the SQLite representation.
+- **Python Controllers:** own SQLite connections, seed validation, reference checks, hotel search, user/history queries, booking CRUD, transactions, and price calculation.
 - **Data and persistence:** `data/` contains synthetic initial hotels, users, trips, and bookings. FastAPI seeds those records exactly once into an ignored SQLite database, then all application reads and writes use SQLite.
 
 Vue and FastAPI communicate through the documented JSON contract below. Presentation code stays separate from frontend request code, and FastAPI routes stay separate from domain logic.
@@ -16,8 +17,12 @@ For hotel search, the Python backend queries the seeded `hotels` and `trips` tab
 ## Main directories
 
 ```text
-backend/   FastAPI API, framework-free Python logic, and backend tests
-             `backend/instance/` is the ignored SQLite runtime location
+backend/   MVC backend and tests
+  app/          FastAPI routes and JSON schemas
+  models/       Entity objects, read models, and SQLite relationships
+  controllers/  Database access, CRUD, and business logic
+  tests/        Backend controller and API checks
+  db/           Ignored SQLite runtime location
 frontend/  Vue 3 application and frontend tooling
 data/      Synthetic hotel, trip, user, and booking CSV data with its schema guide
 docs/      Design, verification guidance, assignment description, and visual references
@@ -75,14 +80,15 @@ The API is then available at `http://127.0.0.1:8000`, with interactive documenta
 
 ## SQLite foundation
 
-`backend/app/database.py` defines the SQLite schema, connection settings,
-schema-version check, initialization entry point, and durable booking-ID
-allocation. `backend/app/seed.py` validates all four related CSV files and
-imports them transactionally only when the database has no seed marker and all
-domain tables are empty.
+`backend/models/schema.py` defines the SQLite representation and relationships.
+`backend/controllers/database.py` owns connection settings, schema-version
+checks, initialization, database operations, and durable booking-ID allocation.
+`backend/controllers/seed.py` validates all four related CSV files and imports
+them transactionally only when the database has no seed marker and all domain
+tables are empty.
 
 The default runtime path is
-`backend/instance/expedia_lite.sqlite3`. Runtime SQLite files are ignored by
+`backend/db/expedia_lite.sqlite3`. Runtime SQLite files are ignored by
 Git. Tests always use temporary database paths. FastAPI initializes the
 configured database before serving requests. Hotel search, user lookup,
 booking CRUD, and booking history all use that database.
@@ -202,6 +208,7 @@ For an integrated browser check, follow `docs/verification.md`. It covers `Harbo
 
 - `AGENTS.md` contains standing project and permission rules.
 - `docs/design-pipeline.md` records the implemented frontend, FastAPI, and backend responsibilities.
+- `docs/mvc-contracts.md` records MVC dependency rules and controller input/output contracts.
 - `docs/verification.md` records the focused checks for the current hotel-search scope.
 - `prompts/` preserves the selected setup and hotel-search instructions that shaped the project.
 - `handoffs/create-handoff.md` contains the reusable prompts for creating and verifying a handoff.

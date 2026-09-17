@@ -10,8 +10,10 @@
 ## Architecture and source organization
 
 - Keep the application split between `backend/` and `frontend/`.
-- Put backend application code in `backend/app/` and backend tests in `backend/tests/`.
-- Keep framework-free Python domain logic separate from FastAPI routes. Routes handle HTTP concerns and delegate business behavior.
+- Put FastAPI transport code in `backend/app/`, entity and relationship definitions in `backend/models/`, controller logic in `backend/controllers/`, and backend tests in `backend/tests/`.
+- Follow MVC dependency direction: the Vue View calls FastAPI routes, routes call Controllers, and Controllers use Models and SQLite. Models must not import FastAPI or Controllers.
+- Keep framework-free Python models and controllers separate from FastAPI routes. Routes handle HTTP concerns, translate controller errors, and delegate business behavior.
+- Keep SQLite connections, reference checks, transactions, and CRUD in the database and business controllers. Controllers exchange model objects through documented contracts.
 - Use type hints for Python functions and add or update tests when backend behavior changes.
 - Put Vue source files in `frontend/src/` and prefer Vue 3 Composition API with `<script setup>`.
 - Keep Vue presentation components separate from backend-request code. Extract reusable UI or logic when it improves clarity.

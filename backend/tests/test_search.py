@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from backend.app.database import connect_database, initialize_database
-from backend.app.search import search_hotel_stays
+from backend.controllers.database import connect_database, initialize_database
+from backend.controllers.search import search_hotel_stays
 
 DATA_DIRECTORY = Path(__file__).resolve().parents[2] / "data"
 
