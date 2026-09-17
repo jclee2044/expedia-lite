@@ -5,7 +5,9 @@ named files before continuing.
 
 ## Objective and decisions
 
-The backend-only SQLite persistence and booking CRUD milestone is complete.
+The backend-only SQLite persistence and booking CRUD milestone is complete and
+committed on the `sqlite-crud` feature branch. Frontend implementation is the
+next milestone.
 The implemented contract is
 [`docs/backend-persistence-contract.md`](../docs/backend-persistence-contract.md).
 
@@ -61,18 +63,16 @@ Final backend decisions:
 
 - Root: `/Users/jlee/Desktop/psu4/ist402/a1_expedia_lite`
 - Branch: `sqlite-crud`
-- HEAD: `a67b2e1fe9c699ad0dddfd0441ac429520b4616f`
-  (`docs: add verification screenshots to report`)
-- `main` and `origin/main` also point to this commit.
-- Backend milestone changes are uncommitted in `.gitignore`, `README.md`,
-  `backend/app/bookings.py`, `backend/app/database.py`, `backend/app/main.py`,
-  `backend/app/schemas.py`, `backend/app/search.py`, `backend/app/seed.py`,
-  `backend/tests/test_api.py`, `backend/tests/test_booking_api.py`,
-  `backend/tests/test_bookings.py`, `backend/tests/test_database.py`,
-  `backend/tests/test_search.py`, `docs/backend-persistence-contract.md`,
-  `docs/design-pipeline.md`, `docs/verification.md`, and this handoff.
+- Backend feature checkpoint: `2c6fad6`
+  (`feat: add SQLite booking persistence API`). The branch tip also contains
+  this handoff-only frontend planning checkpoint.
+- `main` and `origin/main` remain at the preserved Part 1 commit
+  `a67b2e1fe9c699ad0dddfd0441ac429520b4616f`.
+- The backend milestone is committed in 17 files at `2c6fad6`.
 - `report.md` had an existing user change before this milestone and was not
   edited by the agent.
+- This handoff was updated after the backend checkpoint to record the frontend
+  implementation plan and is not part of the backend feature commit.
 
 ## Automated verification
 
@@ -159,11 +159,19 @@ execution-environment boundary, not an application correction.
 
 ## Remaining limitations
 
-- The Vue frontend still exposes only hotel search. Booking, confirmation, and
-  history UI work remains required for the complete assignment, but is outside
-  the completed backend-first milestone.
+- The Vue frontend still exposes only a minimally styled hotel search. Booking,
+  confirmation, history, cancellation, deletion, and the reference-inspired
+  visual treatment remain required.
+- The reference Expedia screenshots include photographs, ratings, amenities,
+  savings, and flight/package claims that do not exist in this project's data.
+  The frontend should reproduce their layout, hierarchy, palette, rounded card
+  treatment, controls, and price emphasis without fabricating those values or
+  copying copyrighted Expedia assets.
+- No local hotel imagery currently exists. Before final visual polish, use
+  original/generated local synthetic hotel imagery or another clearly
+  attributable source; do not crop images from the Expedia reference.
 - The assignment's final manual browser demonstration, screenshots/screencast,
-  evidence-log completion, Git review/commit/merge, and push remain future work.
+  evidence-log completion, final Git review/merge, and push remain future work.
 - Python transitive dependencies are not fully pinned. The current suite has
   two upstream deprecation warnings.
 - `report.md` contains an existing user edit and needs user-led reconciliation
@@ -171,10 +179,36 @@ execution-environment boundary, not an application correction.
 
 ## Recommended next task
 
-Implement the Vue booking and history flows against the completed API. Begin by
-reviewing the reference screenshots and defining the smallest interface that
-lets a demo traveler search, create a booking, see confirmation, load history,
-cancel, and delete while displaying the documented empty and error states.
+Implement the frontend in narrow, verified increments:
+
+1. Define shared request/error helpers plus typed-by-convention API modules for
+   users, booking creation, history, status updates, and deletion. Add focused
+   dependency-free checks for request shapes and error handling.
+2. Establish the mobile-first Expedia-inspired shell and convert the existing
+   search table into reusable stay cards. Preserve and verify blank, loading,
+   results, no-results, and backend-error states before adding booking actions.
+3. Add explicit demo-traveler selection, a book action on each stay, and a
+   confirmation view using the backend response as the source of truth.
+4. Add a history view for the selected traveler, including loading, populated,
+   empty, and failure states. Refresh it from SQLite after booking and whenever
+   the user enters the history view.
+5. Add cancellation and two-step deletion, update the displayed records only
+   after successful API responses, and verify failed mutations remain honest.
+6. Complete responsive/accessibility polish, then run lint, build, backend
+   tests, and a browser walkthrough of both required flows plus blank search,
+   no results, empty history, cancellation, deletion, refresh, and restart
+   persistence. Update documentation, screenshots, evidence, and this handoff.
+
+Critical dependencies are sequential: the API client layer precedes booking
+UI; traveler selection precedes both creation and history; booking creation
+precedes confirmation; history rendering precedes cancellation/deletion; and
+all behavior must pass before final visual/evidence work. Avoid Vue Router, a
+state library, or a CSS framework unless an observed requirement makes one
+necessary; local component state and plain CSS are sufficient for this scope.
+
+The first implementation task is step 1 only. Do not combine it with visual or
+booking UI changes. Verify its request/response behavior before starting the
+search-card redesign.
 
 Before changing frontend files, re-read `AGENTS.md`, `README.md`,
 `docs/design-pipeline.md`, `docs/verification.md`, the assignment description,
