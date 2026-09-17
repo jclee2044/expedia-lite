@@ -6,8 +6,11 @@ named files before continuing.
 ## Objective and decisions
 
 The backend-only SQLite persistence and booking CRUD milestone is complete and
-committed on the `sqlite-crud` feature branch. Frontend implementation is the
-next milestone.
+committed on the `sqlite-crud` feature branch. Frontend steps 1 through 5 are
+implemented and verified but not yet committed. The integrated browser has
+verified search, traveler selection, booking creation and confirmation,
+persistent history, cancellation, failed-mutation handling, the two-step
+deletion guard, and permanent deletion of the non-seed B007 test record.
 The implemented contract is
 [`docs/backend-persistence-contract.md`](../docs/backend-persistence-contract.md).
 
@@ -26,7 +29,7 @@ Final backend decisions:
 - Cancellation preserves history while deletion removes the booking.
 - Multiple bookings for the same user/trip are allowed because inventory and
   duplicate-booking restrictions are outside the documented scope.
-- Frontend booking and history work remains a separate next milestone.
+- The frontend booking lifecycle is complete through guarded deletion.
 
 ## What works
 
@@ -58,21 +61,50 @@ Final backend decisions:
   blank search returns `400`.
 - README, design, verification, and persistence documentation match the
   completed backend and explain database lifetime across restarts.
+- `frontend/src/api/http.js` centralizes JSON success, empty `204`, backend
+  detail-message, status-code, and fallback-error handling.
+- `frontend/src/api/hotels.js`, `users.js`, and `bookings.js` cover search,
+  traveler listing, history, booking creation/retrieval, status updates, and
+  deletion without mixing request code into Vue components.
+- `frontend/tests/api.test.js` provides dependency-free Node checks for the
+  request contract. No frontend dependency was added.
+- `frontend/src/components/StayCard.vue` renders the documented repeated-card
+  structure using real hotel/trip values, derived price emphasis, and generic
+  decorative Unsplash photography that is explicitly not presented as the
+  fictional property.
+- `frontend/src/assets/main.css` provides the mobile-first navy, blue, white,
+  and yellow visual system, responsive card layout, visible focus treatment,
+  reduced-motion handling, and styled initial/loading/empty/error states.
+- `frontend/src/App.vue` loads travelers, requires explicit selection, locks all
+  booking controls during a POST, and sends the selected user/trip identifiers
+  through the request module.
+- `frontend/src/components/BookingConfirmation.vue` renders only fields from
+  the successful backend response, including the generated booking ID, status,
+  dates, booked-on date, and estimated total.
+- `frontend/src/components/BookingHistory.vue` renders loading, populated,
+  empty, and retryable failure states from `GET /api/users/{user_id}/bookings`.
+  The header navigation switches between `Find stays` and `My trips` without a
+  router or additional dependency.
+- Booking history now exposes cancellation and a two-step permanent deletion
+  control. App-level mutation state locks every mutation control while a PATCH
+  or DELETE is pending and refreshes history only after server success.
 
 ## Git state
 
 - Root: `/Users/jlee/Desktop/psu4/ist402/a1_expedia_lite`
 - Branch: `sqlite-crud`
 - Backend feature checkpoint: `2c6fad6`
-  (`feat: add SQLite booking persistence API`). The branch tip also contains
-  this handoff-only frontend planning checkpoint.
+  (`feat: add SQLite booking persistence API`).
+- Frontend feature checkpoint: `b4a167b`
+  (`feat: add Expedia Lite booking frontend`), containing the completed Vue
+  implementation, frontend tests, documentation, and this updated handoff.
 - `main` and `origin/main` remain at the preserved Part 1 commit
   `a67b2e1fe9c699ad0dddfd0441ac429520b4616f`.
 - The backend milestone is committed in 17 files at `2c6fad6`.
 - `report.md` had an existing user change before this milestone and was not
   edited by the agent.
-- This handoff was updated after the backend checkpoint to record the frontend
-  implementation plan and is not part of the backend feature commit.
+- The only current worktree change is the preserved user-owned `report.md`
+  edit; it is intentionally excluded from the frontend feature checkpoint.
 
 ## Automated verification
 
@@ -96,6 +128,67 @@ npm run build
 
 Result: lint passed and Vite 8.3.0 built 13 modules successfully. This was a
 compatibility regression only; no frontend booking/history code was added.
+
+Frontend step 1 was checked with:
+
+```bash
+cd frontend
+npm test
+npm run lint
+npm run build
+```
+
+Result: all 9 API-contract tests passed, lint passed, and Vite built 14 modules
+successfully. The first AutoLoop check passed without a correction cycle.
+
+Frontend step 2 repeated all three commands with the same passing result. The
+integrated browser then verified the initial screen, a `Harbor` search with one
+hotel and two stay cards, a `nonexistent` no-results state, blank validation,
+an intentional backend-unavailable error, and recovery after backend restart.
+Both remote decorative images loaded at 900 pixels, the page had no horizontal
+overflow at the observed 575-pixel viewport, and browser error/warning logs
+were empty.
+
+Frontend step 3 repeated the 9 passing API tests, lint, and production build
+(17 modules). The integrated browser verified traveler loading, required-field
+focus without a database write, U006/T001 creation as B007, complete
+backend-sourced confirmation, and an intentional failed POST while FastAPI was
+stopped. Direct SQLite inspection confirmed B007 is `confirmed` and the runtime
+database now contains 7 bookings.
+
+Frontend step 4 repeated the 9 passing API tests, lint, and production build
+(18 modules). In the integrated browser, history required an explicit traveler,
+U006 history showed persisted B007 before and after a full browser refresh, and
+an intentional backend stop produced the retryable failure state. A temporary
+auto-cleaned SQLite database verified U006's genuine zero-booking state without
+modifying the persistent runtime database. The normal backend was restored,
+B007 remained present, and browser warning/error logs were empty.
+
+Frontend step 5 passes the same 9 API tests, lint, and production build (18
+modules). The integrated browser cancelled B007 and retained it in history;
+direct SQLite inspection confirmed `status = cancelled`. With FastAPI
+intentionally stopped, cancelling seeded B001 showed a recoverable error while
+both U001 records remained visible. The deletion disclosure and `Keep booking`
+path were verified. After explicit user authorization, the browser deleted only
+B007 and rendered U006's empty-history state. Direct SQLite inspection then
+showed exactly B001–B006, no B007, and a durable booking counter of 7.
+
+The final AutoLoop verification passed on its first cycle: all 40 backend
+tests, all 9 frontend API-contract tests, frontend lint, and the 18-module
+production build succeeded. The integrated browser then reconfirmed `Harbor`
+as one hotel and two stays, the no-result state, blank-query validation, U006's
+post-deletion empty history, and the restored search view. At the observed
+822-pixel viewport, document width matched viewport width and both decorative
+images loaded at 900 natural pixels.
+
+A follow-up integrated-browser button audit verified `Find stays`, `My trips`,
+`Search`, both booking-button states, `Cancel booking`, `Delete permanently`,
+`Keep booking`, `Yes, delete permanently`, traveler `Retry`, history `Try
+again`, and the Expedia Lite home link. Every observed URL remained on
+`127.0.0.1:5173`; the only anchor targets the local `#top` fragment, and no
+clickable external target exists in the rendered page. The audit created,
+cancelled, and deleted non-seed B008. Direct SQLite inspection afterward showed
+only B001–B006 and no B008; the durable counter advanced to 8 as designed.
 
 ## Live backend verification
 
@@ -131,10 +224,16 @@ execution-environment boundary, not an application correction.
 
 ## Cleanup and current services
 
-- Both temporary Uvicorn processes shut down cleanly.
-- No process is listening on ports 8000 or 5173.
+- FastAPI is currently running on `127.0.0.1:8000` in managed session 53897,
+  and Vite is running on `127.0.0.1:5173` in managed session 92299. They were
+  restarted at the user's request so the frontend can remain open for review.
 - The temporary audit directory and database were removed.
-- The project default runtime database does not exist and was not modified.
+- Starting the documented local server for integrated frontend testing created
+  the ignored default runtime database at
+  `backend/instance/expedia_lite.sqlite3`. It contains the six supplied booking
+  rows after authorized deletion of the generated B007 test record. Its durable
+  booking counter is 8 after the later B008 button audit, so neither deleted ID
+  will be reused.
 - Seed CSV files were not modified.
 
 ## Requirement audit
@@ -159,17 +258,13 @@ execution-environment boundary, not an application correction.
 
 ## Remaining limitations
 
-- The Vue frontend still exposes only a minimally styled hotel search. Booking,
-  confirmation, history, cancellation, deletion, and the reference-inspired
-  visual treatment remain required.
 - The reference Expedia screenshots include photographs, ratings, amenities,
   savings, and flight/package claims that do not exist in this project's data.
-  The frontend should reproduce their layout, hierarchy, palette, rounded card
-  treatment, controls, and price emphasis without fabricating those values or
-  copying copyrighted Expedia assets.
-- No local hotel imagery currently exists. Before final visual polish, use
-  original/generated local synthetic hotel imagery or another clearly
-  attributable source; do not crop images from the Expedia reference.
+  The frontend reproduces their layout hierarchy, palette, rounded card
+  treatment, controls, and price emphasis without fabricating those values.
+- Hotel imagery currently loads from three documented Unsplash URLs, so the
+  decorative images require a network connection. A neutral background remains
+  behind each image if the remote request is unavailable.
 - The assignment's final manual browser demonstration, screenshots/screencast,
   evidence-log completion, final Git review/merge, and push remain future work.
 - Python transitive dependencies are not fully pinned. The current suite has
@@ -179,36 +274,9 @@ execution-environment boundary, not an application correction.
 
 ## Recommended next task
 
-Implement the frontend in narrow, verified increments:
-
-1. Define shared request/error helpers plus typed-by-convention API modules for
-   users, booking creation, history, status updates, and deletion. Add focused
-   dependency-free checks for request shapes and error handling.
-2. Establish the mobile-first Expedia-inspired shell and convert the existing
-   search table into reusable stay cards. Preserve and verify blank, loading,
-   results, no-results, and backend-error states before adding booking actions.
-3. Add explicit demo-traveler selection, a book action on each stay, and a
-   confirmation view using the backend response as the source of truth.
-4. Add a history view for the selected traveler, including loading, populated,
-   empty, and failure states. Refresh it from SQLite after booking and whenever
-   the user enters the history view.
-5. Add cancellation and two-step deletion, update the displayed records only
-   after successful API responses, and verify failed mutations remain honest.
-6. Complete responsive/accessibility polish, then run lint, build, backend
-   tests, and a browser walkthrough of both required flows plus blank search,
-   no results, empty history, cancellation, deletion, refresh, and restart
-   persistence. Update documentation, screenshots, evidence, and this handoff.
-
-Critical dependencies are sequential: the API client layer precedes booking
-UI; traveler selection precedes both creation and history; booking creation
-precedes confirmation; history rendering precedes cancellation/deletion; and
-all behavior must pass before final visual/evidence work. Avoid Vue Router, a
-state library, or a CSS framework unless an observed requirement makes one
-necessary; local component state and plain CSS are sufficient for this scope.
-
-The first implementation task is step 1 only. Do not combine it with visual or
-booking UI changes. Verify its request/response behavior before starting the
-search-card redesign.
+Capture the course-submission screenshots/screencast and reconcile the
+user-owned report/evidence log. Run the documented checks again only if source
+changes are made after the frontend checkpoint.
 
 Before changing frontend files, re-read `AGENTS.md`, `README.md`,
 `docs/design-pipeline.md`, `docs/verification.md`, the assignment description,

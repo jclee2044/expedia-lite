@@ -7,9 +7,15 @@ Run commands from the project root unless a step says otherwise.
 ```bash
 backend/.venv/bin/python -m pytest backend/tests
 cd frontend
+npm test
 npm run lint
 npm run build
 ```
+
+The dependency-free frontend API checks verify the documented hotel, user,
+history, create, retrieve, status-update, and delete request contracts. They
+also verify `204` handling, backend detail messages, status preservation, and
+operation-specific fallbacks for non-JSON failures.
 
 The focused SQLite foundation check is:
 
@@ -48,8 +54,43 @@ IDs, and persistence through a second FastAPI application startup.
 4. Confirm the page reports one hotel and shows the `T001` and `T009` stays.
 5. Search for an unknown name and confirm the no-results state.
 6. Submit a blank search and confirm `Enter a hotel name.` appears.
+7. Search for `Harbor`, try booking without a traveler, and confirm the traveler
+   selector receives focus with a clear validation message.
+8. Select Demo Traveler 6 and book T001. Confirm the server-issued booking ID,
+   confirmed status, traveler, hotel, stay, dates, booked-on date, and estimated
+   total appear in the confirmation card.
+9. Open `My trips` for the same traveler and confirm the new booking appears.
+10. Refresh the browser, select the traveler again, reopen `My trips`, and
+    confirm the booking is still retrieved from SQLite.
+11. Verify an empty traveler history and an unavailable-backend history error
+    with a visible retry action.
+12. Cancel a confirmed booking and confirm its status changes to `cancelled`
+    while the record remains in history.
+13. Stop FastAPI, attempt a mutation, and confirm the error is visible while
+    the previously loaded records remain honest; restart FastAPI afterward.
+14. Open `Delete permanently`, use `Keep booking` once to verify the guard,
+    then explicitly confirm deletion of a non-seed test booking. Confirm the
+    traveler returns to the empty-history state and verify directly that the
+    six supplied booking IDs remain in SQLite.
+
+Also confirm that results use the documented repeated-card structure with a
+decorative image, hotel and trip facts, fixed dates, nights, nightly rate, and
+estimated total. At a narrow viewport, cards must remain readable without
+horizontal page overflow. Browser console warnings and errors should be empty.
 
 The API contract can also be inspected at `http://127.0.0.1:8000/docs`.
+
+## Frontend live verification evidence
+
+On 2026-09-17, the integrated browser completed the search, traveler,
+creation, confirmation, persisted-history, cancellation, failed-mutation, and
+two-step deletion flows against the default local SQLite database. B007 was
+created for U006/T001, persisted across a full browser refresh, was cancelled
+while remaining in history, and was then deleted only after the permanent
+deletion disclosure was explicitly confirmed. The UI returned to U006's empty
+history state. A direct SQLite read showed exactly the supplied B001–B006 rows,
+no B007 row, and a booking counter of 7, proving that deletion did not alter
+seed records or make the generated ID reusable.
 
 ## Backend live verification evidence
 

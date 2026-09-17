@@ -1,10 +1,10 @@
 # Expedia Lite
 
-Expedia Lite is a small local travel-booking prototype inspired by Expedia. The backend supports SQLite-backed hotel-name search, synthetic traveler selection, booking creation and confirmation, booking history, status updates, and deletion. The frontend currently presents only hotel search; booking and history interface work remains planned.
+Expedia Lite is a small local travel-booking prototype inspired by Expedia. The backend supports SQLite-backed hotel-name search, synthetic traveler selection, booking creation and confirmation, booking history, status updates, and deletion. The frontend presents responsive hotel search, traveler selection, stay cards, backend-sourced booking confirmation, persisted booking history, cancellation, and guarded permanent deletion.
 
 ## Architecture
 
-- **Vue interface:** currently presents hotel search and its matching hotel stays. Booking, confirmation, and history views remain planned work.
+- **Vue interface:** presents hotel search and matching stays through a mobile-first, reference-inspired card layout. It loads synthetic travelers, creates bookings through FastAPI, renders backend-sourced confirmation details, retrieves each traveler's persisted history, cancels confirmed bookings, and requires a second explicit action before permanent deletion.
 - **FastAPI API:** owns HTTP and JSON request/response handling for search, users, booking CRUD, and history.
 - **Python domain logic:** contains framework-free seed validation, SQLite hotel-name search, user lookup, joined booking history, booking transactions, and price calculation.
 - **Data and persistence:** `data/` contains synthetic initial hotels, users, trips, and bookings. FastAPI seeds those records exactly once into an ignored SQLite database, then all application reads and writes use SQLite.
@@ -48,6 +48,12 @@ npm ci
 
 The frontend was generated with `npm create vue@latest -- --bare --eslint frontend`. Its Oxlint declaration was adjusted to `~1.73.0` to satisfy the peer version required by the generated ESLint integration.
 
+The result cards use decorative hotel photography loaded from Unsplash. The
+photos are generic visual references and do not depict the fictional hotels:
+[`photo-1566073771259-6a8506099945`](https://unsplash.com/s/photos/hotel-pool),
+[`photo-1542314831-068cd1dbfeeb`](https://unsplash.com/s/photos/hotel-resort),
+and [`photo-1445019980597-93fa8acb246c`](https://unsplash.com/s/photos/hotel-exterior).
+
 ## Run locally
 
 Start the Vue development server:
@@ -57,7 +63,7 @@ cd frontend
 npm run dev
 ```
 
-The Vue development server runs at `http://127.0.0.1:5173` and proxies `/api` requests to the backend at `http://127.0.0.1:8000`. Start both servers to use hotel search. The current search screen intentionally uses plain semantic HTML with only a thin outline and minimal padding on the results table.
+The Vue development server runs at `http://127.0.0.1:5173` and proxies `/api` requests to the backend at `http://127.0.0.1:8000`. Start both servers to use hotel search. The search screen uses semantic, responsive stay cards derived from the documented Expedia references while displaying only values available in the synthetic project data.
 
 From the project root, start the FastAPI development server:
 
@@ -184,12 +190,13 @@ Verify the frontend:
 
 ```bash
 cd frontend
+npm test
 npm ls --all
 npm run lint
 npm run build
 ```
 
-For an integrated browser check, open `http://127.0.0.1:5173`, search for `Harbor`, and confirm that one hotel and two available stays appear. Search for an unknown hotel name to verify the no-results state, and submit a blank search to verify the input message.
+For an integrated browser check, follow `docs/verification.md`. It covers `Harbor` search, no-result and blank-query states, traveler selection, booking confirmation and persistence, history, cancellation, and guarded deletion.
 
 ## Durable context and handoffs
 
@@ -205,11 +212,12 @@ Before transferring work to a new thread or model, follow [the handoff procedure
 ## Open decisions
 
 - Decide how to lock transitive Python dependency versions.
-- Finalize the frontend presentation and interaction states for booking
-  confirmation and booking history.
+- Decide whether remote decorative Unsplash images should be replaced with
+  repository-owned assets before the final course submission.
 
 The backend persistence and booking API decisions are recorded in
 [`docs/backend-persistence-contract.md`](docs/backend-persistence-contract.md).
 That contract is the implementation target for the `sqlite-crud` branch; it is
 implemented in the backend with automated persistence, domain, and API tests.
-The frontend booking and history flows remain incomplete.
+The complete frontend booking lifecycle is connected through FastAPI to
+SQLite, including confirmation, history, cancellation, and guarded deletion.
