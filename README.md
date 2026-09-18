@@ -1,18 +1,18 @@
 # Expedia Lite
 
-Expedia Lite is a small local travel-booking prototype inspired by Expedia. The backend supports SQLite-backed hotel-name search, classroom account creation and login, authenticated booking creation and confirmation, booking history, status updates, and deletion. The frontend presents responsive hotel search, account controls, stay cards, backend-sourced booking confirmation, personalized persisted history, cancellation, and guarded permanent deletion.
+Expedia Lite is a small local travel-booking prototype inspired by Expedia. The backend supports SQLite-backed hotel-name search, classroom account creation and login, personalized search-result pricing, authenticated booking creation and confirmation, booking history, status updates, and deletion. The frontend presents responsive hotel search, account controls, stay cards, backend-returned prices, booking confirmation, persisted history, cancellation, and guarded permanent deletion.
 
 ## Architecture
 
 - **Vue interface:** presents hotel search and matching stays through a mobile-first, reference-inspired card layout. It creates accounts, logs users in and out, creates bookings through FastAPI, renders backend-sourced confirmation details, retrieves the signed-in account's persisted history, cancels confirmed bookings, and requires a second explicit action before permanent deletion.
 - **FastAPI API:** acts as the HTTP boundary, validating JSON, managing the opaque `HttpOnly` session cookie, calling controllers, and translating controller failures into responses.
-- **Python Models:** framework-free entity and safe account/read objects represent hotels, trips, users, bookings, search results, and their relationships. The model schema records the SQLite representation.
-- **Python Controllers:** own SQLite connections, schema migration, seed validation, account creation/authentication, process-local sessions, reference checks, hotel search, account history, booking CRUD, authorization, transactions, and price calculation.
+- **Python Models:** framework-free entity and read objects represent hotels, trips, users, bookings, search history, and results. Pure model functions normalize queries, define the application day, count matching searches, and calculate prices.
+- **Python Controllers:** own SQLite connections, schema migration, seed validation, account creation/authentication, process-local sessions, reference checks, search orchestration, account history, booking CRUD, authorization, and transactions. Controllers ask the model to perform urgency and price calculations.
 - **Data and persistence:** `data/` contains synthetic initial hotels, users, trips, and bookings. FastAPI seeds those records exactly once into an ignored SQLite database, then all application reads and writes use SQLite.
 
 Vue and FastAPI communicate through the documented JSON contract below. Presentation code stays separate from frontend request code, and FastAPI routes stay separate from domain logic.
 
-For hotel search, the Python backend queries the seeded `hotels` and `trips` tables, connects records through `hotel_id`, and derives nights and stay prices from stored source values. FastAPI serializes the matching joined records as JSON, and the Vue frontend requests and displays them.
+For hotel search, the Python backend queries the seeded `hotels` and `trips` tables and connects records through `hotel_id`. A signed-in nonblank search is also stored in the shared `search_history` table. Pure Python model logic derives nights, frequency, and the effective search-result price from the stored base rate. FastAPI serializes those values, and Vue displays them without recalculating them.
 
 ## Main directories
 
@@ -92,7 +92,7 @@ The default runtime path is
 `backend/db/expedia_lite.sqlite3`. Runtime SQLite files are ignored by
 Git. Tests always use temporary database paths. FastAPI initializes the
 configured database before serving requests. Hotel search, user lookup,
-booking CRUD, and booking history all use that database.
+search history, booking CRUD, and booking history all use that database.
 
 The CSV files are initial data, not a permanent limit on database contents.
 Once a database has its seed marker, restarts do not read the CSV files again
@@ -103,6 +103,13 @@ seeds a new database from the supplied CSV files.
 ## Hotel search API contract
 
 Send a `GET` request to `/api/hotels/search` with a required `name` query parameter. Matching trims surrounding whitespace and uses a case-insensitive partial match against the seeded hotel's `hotel_name`. The backend joins matching SQLite hotel and trip rows using `hotel_id`, returning one result row per offered stay in `trip_id` order.
+
+For a signed-in account, every submitted nonblank search is stored with a UTC
+timestamp. The model compares normalized queries within the current
+`America/New_York` calendar day, including the current search. Searches one
+through three use the stored base rate; search four and later use base × 1.20.
+The multiplier is applied once and never written back to the hotel. Guest
+searches remain available at the base rate and are not recorded.
 
 Example request:
 
@@ -116,6 +123,12 @@ Example response:
 {
   "query": "Harbor",
   "hotel_count": 1,
+  "pricing": {
+    "daily_search_count": null,
+    "multiplier": 1.0,
+    "adjustment_applied": false,
+    "time_zone": "America/New_York"
+  },
   "results": [
     {
       "hotel_id": "H001",
@@ -127,7 +140,9 @@ Example response:
       "check_in": "2026-09-18",
       "check_out": "2026-09-20",
       "nights": 2,
+      "base_nightly_rate_usd": 150.0,
       "nightly_rate_usd": 150.0,
+      "base_stay_price_usd": 300.0,
       "stay_price_usd": 300.0
     }
   ]
@@ -193,11 +208,13 @@ Run the backend domain and API tests:
 backend/.venv/bin/python -m pytest backend/tests
 ```
 
-Run focused persistence and booking checks:
+Run focused persistence, pricing, and booking checks:
 
 ```bash
 backend/.venv/bin/python -m pytest \
   backend/tests/test_database.py \
+  backend/tests/test_pricing.py \
+  backend/tests/test_search.py \
   backend/tests/test_bookings.py \
   backend/tests/test_booking_api.py
 ```
@@ -212,7 +229,7 @@ npm run lint
 npm run build
 ```
 
-For an integrated browser check, follow `docs/verification.md`. It covers account creation, duplicate usernames, login/logout, `Harbor` search, no-result and blank-query states, authenticated booking confirmation and persistence, history, cancellation, and guarded deletion.
+For an integrated browser check, follow `docs/verification.md`. It covers accounts, personalized-price boundaries and isolation, no-result and blank-query states, authenticated booking confirmation and persistence, history, cancellation, and guarded deletion.
 
 ## Durable context and handoffs
 

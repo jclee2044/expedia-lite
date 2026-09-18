@@ -41,9 +41,9 @@ persistence, generic login errors, opaque session creation/expiration/logout,
 password-free responses, authenticated booking identity, and ownership.
 
 The search and API tests also use temporary databases. They verify the existing
-search JSON contract, the reference queries shown in the screenshots, startup
-initialization, and a second startup that continues serving search after the
-temporary seed CSV files have been removed.
+search JSON contract, pure model pricing, New York day boundaries, current-search
+inclusion, user/query/day isolation, non-compounding fourth-search pricing,
+stored-base immutability, and history persistence across restart.
 
 The focused booking checks are:
 
@@ -72,18 +72,24 @@ IDs, and persistence through a second FastAPI application startup.
 9. Log out, attempt the same username with different capitalization, and confirm
    duplicate feedback. Then verify a wrong password produces the generic login
    error and a correct password logs in.
-10. Search for `Harbor` and book T001. Confirm the server-issued booking ID,
+10. While signed in, search `Valley Trail` four times. Confirm the first three
+    searches show $100 nightly and the fourth shows $120. Confirm the customer
+    sees only the effective price, then search again and confirm it stays $120
+    rather than compounding.
+11. Log into a different demo account and search `Valley Trail`; confirm its
+    first result is $100. Confirm a different query is counted separately.
+12. Search for `Harbor` and book T001. Confirm the server-issued booking ID,
     confirmed status, account, hotel, stay, dates, booked-on date, and estimated
     total appear in the confirmation card.
-11. Open `My trips` and confirm the new booking appears. Refresh the browser,
+13. Open `My trips` and confirm the new booking appears. Refresh the browser,
     reopen `My trips`, and confirm the session and booking are restored.
-12. Cancel the booking and confirm its status changes to `cancelled`
+14. Cancel the booking and confirm its status changes to `cancelled`
     while the record remains in history.
-13. Log out and confirm the prior account's history and confirmation disappear.
+15. Log out and confirm the prior account's history and confirmation disappear.
     Log back in and confirm the persisted booking returns.
-14. Stop FastAPI, attempt a mutation, and confirm the error is visible while
+16. Stop FastAPI, attempt a mutation, and confirm the error is visible while
     the previously loaded records remain honest; restart FastAPI afterward.
-15. Open `Delete permanently`, use `Keep booking` once to verify the guard,
+17. Open `Delete permanently`, use `Keep booking` once to verify the guard,
     then explicitly confirm deletion of a non-seed test booking. Confirm the
     account returns to the empty-history state and verify directly that the
     six supplied booking IDs remain in SQLite.
@@ -97,17 +103,19 @@ The API contract can also be inspected at `http://127.0.0.1:8000/docs`.
 
 ## Frontend live verification evidence
 
-On 2026-09-17, the integrated browser logged in as the fictional `demo_u006`
-account and displayed that username in the header and Account screen. `Harbor`
-returned one hotel and two stays. Booking T001 produced B010, personalized
-history showed it, and both the session and booking remained visible after a
-full browser refresh. Cancellation changed B010 to `cancelled` without removing
-it. The permanent-delete action exposed its second-step disclosure, and `Keep
-booking` closed the guard without deleting. Logout removed the account identity
-and protected history; opening `My trips` then returned to Account with useful
-feedback. A wrong password displayed the generic login error, the Create
-Account form exposed username/password/optional-email fields, and the browser
-console contained no warnings or errors.
+On 2026-09-17, the integrated browser logged in as the fictional `demo_u001`
+account and submitted `Valley Trail` four times. Searches 1–3 displayed the
+$100 nightly rate; search 4 displayed a $120 nightly rate and $240 stay total
+without exposing the stored base values. After switching
+to `demo_u002`, that account's first identical search remained $100. Restarting
+FastAPI cleared the process-local session but retained history; after logging
+back in, `demo_u001` search 5 remained $120. The browser console contained no
+warnings or errors.
+
+The earlier account/booking browser walkthrough used fictional `demo_u006`.
+`Harbor` returned one hotel and two stays, booking T001 produced B010, and
+history, refresh, cancellation, logout, login errors, and guarded deletion all
+behaved as documented.
 
 B010 was synthetic verification data created during this check. It was removed
 afterward with the ownership-aware controller, leaving the six supplied booking
@@ -116,14 +124,14 @@ ID cannot be reused.
 
 ## Backend live verification evidence
 
-On 2026-09-17, 63 backend tests passed. They covered fresh schema version 2,
-transactional version-1 migration, preserved IDs and foreign keys, account
-creation and persistence, case-insensitive uniqueness, monotonic user IDs,
-generic authentication failure, expiring/logout sessions, password-free
-responses, ownership-protected booking CRUD/history, search, and the existing
-booking lifecycle. The default runtime database was also migrated from schema
-and seed version 1 to version 2: it retained U001–U006 and all six booking-user
-links, and `PRAGMA foreign_key_check` returned no violations.
+On 2026-09-17, 82 backend tests passed. They covered fresh schema version 3,
+transactional version-1 and version-2 migration, preserved IDs and foreign
+keys, accounts and sessions, ownership-protected booking CRUD/history, pure
+pricing calculations, query normalization, New York day boundaries, search
+isolation, non-compounding adjustment, and restart persistence. The default
+runtime database was migrated to schema version 3: it retained U001–U006 and
+all six booking-user links, kept H008's stored base at 10,000 cents, and
+`PRAGMA foreign_key_check` returned no violations.
 
 Ten frontend API tests, frontend lint, and the production build passed. The
 integrated servers were started only for this verification and stopped after

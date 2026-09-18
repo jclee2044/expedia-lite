@@ -1,6 +1,6 @@
 """SQLite representation of Expedia Lite models and relationships."""
 
-SCHEMA_VERSION = "2"
+SCHEMA_VERSION = "3"
 
 USERS_TABLE_SQL = """
 CREATE TABLE users (
@@ -17,6 +17,20 @@ CREATE TABLE users (
         )
     )
 );
+"""
+
+SEARCH_HISTORY_TABLE_SQL = """
+CREATE TABLE search_history (
+    search_id INTEGER PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    query TEXT NOT NULL CHECK (length(trim(query)) > 0),
+    searched_at_utc TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+        ON UPDATE RESTRICT ON DELETE RESTRICT
+);
+
+CREATE INDEX search_history_user_time_idx
+ON search_history (user_id, searched_at_utc);
 """
 
 SCHEMA_SQL = """
@@ -73,6 +87,18 @@ CREATE TABLE IF NOT EXISTS bookings (
     FOREIGN KEY (trip_id) REFERENCES trips(trip_id)
         ON UPDATE RESTRICT ON DELETE RESTRICT
 );
+
+CREATE TABLE IF NOT EXISTS search_history (
+    search_id INTEGER PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    query TEXT NOT NULL CHECK (length(trim(query)) > 0),
+    searched_at_utc TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+        ON UPDATE RESTRICT ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS search_history_user_time_idx
+ON search_history (user_id, searched_at_utc);
 
 CREATE TABLE IF NOT EXISTS id_counters (
     entity TEXT PRIMARY KEY,

@@ -18,8 +18,19 @@ class HotelStayResponse(BaseModel):
     check_in: date
     check_out: date
     nights: int
+    base_nightly_rate_usd: float
     nightly_rate_usd: float
+    base_stay_price_usd: float
     stay_price_usd: float
+
+
+class SearchPricingResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    daily_search_count: int | None
+    multiplier: float
+    adjustment_applied: bool
+    time_zone: str
 
 
 class HotelSearchResponse(BaseModel):
@@ -27,6 +38,7 @@ class HotelSearchResponse(BaseModel):
 
     query: str
     hotel_count: int
+    pricing: SearchPricingResponse
     results: list[HotelStayResponse]
 
 

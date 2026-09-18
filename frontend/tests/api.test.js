@@ -31,7 +31,17 @@ function jsonResponse(body, init = {}) {
 }
 
 test('searchHotels encodes the query and returns the response body', async () => {
-  const expected = { query: 'Harbor & Bay', hotel_count: 0, results: [] }
+  const expected = {
+    query: 'Harbor & Bay',
+    hotel_count: 0,
+    pricing: {
+      daily_search_count: 4,
+      multiplier: 1.2,
+      adjustment_applied: true,
+      time_zone: 'America/New_York',
+    },
+    results: [],
+  }
 
   const actual = await withFetch(async (url, options) => {
     assert.equal(url, '/api/hotels/search?name=Harbor+%26+Bay')

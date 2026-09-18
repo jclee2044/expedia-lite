@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -65,6 +65,36 @@ class Booking:
 
 
 @dataclass(frozen=True)
+class SearchHistory:
+    """One persisted normalized hotel-name search by an account."""
+
+    search_id: int
+    user_id: str
+    query: str
+    searched_at: datetime
+
+
+@dataclass(frozen=True)
+class PriceQuote:
+    """Base and effective prices calculated for one offered stay."""
+
+    base_nightly_rate_usd: Decimal
+    nightly_rate_usd: Decimal
+    base_stay_price_usd: Decimal
+    stay_price_usd: Decimal
+
+
+@dataclass(frozen=True)
+class SearchPricing:
+    """Pricing context shared by every result in one search response."""
+
+    daily_search_count: int | None
+    multiplier: Decimal
+    adjustment_applied: bool
+    time_zone: str
+
+
+@dataclass(frozen=True)
 class HotelStay:
     """A hotel and trip projection displayed by search."""
 
@@ -77,7 +107,9 @@ class HotelStay:
     check_in: date
     check_out: date
     nights: int
+    base_nightly_rate_usd: Decimal
     nightly_rate_usd: Decimal
+    base_stay_price_usd: Decimal
     stay_price_usd: Decimal
 
 
@@ -87,6 +119,7 @@ class HotelSearch:
 
     query: str
     hotel_count: int
+    pricing: SearchPricing
     results: list[HotelStay]
 
 

@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 
 from backend.controllers.seed import seed_database
-from backend.models.schema import SCHEMA_SQL, SCHEMA_VERSION, USERS_TABLE_SQL
+from backend.models.schema import (
+    SCHEMA_SQL,
+    SCHEMA_VERSION,
+    SEARCH_HISTORY_TABLE_SQL,
+    USERS_TABLE_SQL,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # Runtime state is kept outside the application and controller packages.
@@ -90,6 +96,10 @@ def create_schema(connection: sqlite3.Connection) -> None:
 
     if version_row is not None and version_row["value"] == "1":
         _migrate_schema_v1_to_v2(connection)
+        version_row = {"value": "2"}
+
+    if version_row is not None and version_row["value"] == "2":
+        _migrate_schema_v2_to_v3(connection)
         return
 
     if version_row is not None and version_row["value"] != SCHEMA_VERSION:
@@ -161,7 +171,7 @@ def _migrate_schema_v1_to_v2(connection: sqlite3.Connection) -> None:
         )
         connection.execute(
             "UPDATE app_metadata SET value = ? WHERE key = 'schema_version'",
-            (SCHEMA_VERSION,),
+            ("2",),
         )
         if seed_row is not None:
             connection.execute(
@@ -180,6 +190,23 @@ def _migrate_schema_v1_to_v2(connection: sqlite3.Connection) -> None:
         connection.execute(
             f"PRAGMA foreign_keys = {1 if foreign_keys_enabled else 0}"
         )
+
+
+def _migrate_schema_v2_to_v3(connection: sqlite3.Connection) -> None:
+    """Add shared search history without changing existing domain records."""
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        for statement in SEARCH_HISTORY_TABLE_SQL.split(";"):
+            if statement.strip():
+                connection.execute(statement)
+        connection.execute(
+            "UPDATE app_metadata SET value = ? WHERE key = 'schema_version'",
+            (SCHEMA_VERSION,),
+        )
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
 
 
 def initialize_database(
@@ -326,6 +353,46 @@ def fetch_hotel_stays(
 ) -> list[sqlite3.Row]:
     """Read stays whose hotel name contains the normalized query."""
     return connection.execute(SEARCH_SELECT, (query,)).fetchall()
+
+
+def insert_search_history(
+    connection: sqlite3.Connection,
+    user_id: str,
+    query: str,
+    searched_at_utc: datetime,
+) -> int:
+    """Persist one normalized search inside the caller's transaction."""
+    row = connection.execute(
+        """
+        INSERT INTO search_history (user_id, query, searched_at_utc)
+        VALUES (?, ?, ?)
+        RETURNING search_id
+        """,
+        (user_id, query, searched_at_utc.isoformat()),
+    ).fetchone()
+    if row is None:
+        raise RuntimeError("The search history record was not created.")
+    return int(row["search_id"])
+
+
+def fetch_user_search_history_between(
+    connection: sqlite3.Connection,
+    user_id: str,
+    start_utc: datetime,
+    end_utc: datetime,
+) -> list[sqlite3.Row]:
+    """Read raw history rows for one user in a half-open UTC interval."""
+    return connection.execute(
+        """
+        SELECT search_id, user_id, query, searched_at_utc
+        FROM search_history
+        WHERE user_id = ?
+          AND searched_at_utc >= ?
+          AND searched_at_utc < ?
+        ORDER BY searched_at_utc, search_id
+        """,
+        (user_id, start_utc.isoformat(), end_utc.isoformat()),
+    ).fetchall()
 
 
 def insert_booking(

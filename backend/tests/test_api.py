@@ -1,4 +1,5 @@
 import shutil
+import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -24,6 +25,12 @@ def test_search_endpoint_returns_documented_contract(client: TestClient) -> None
     assert response.json() == {
         "query": "Harbor",
         "hotel_count": 1,
+        "pricing": {
+            "daily_search_count": None,
+            "multiplier": 1.0,
+            "adjustment_applied": False,
+            "time_zone": "America/New_York",
+        },
         "results": [
             {
                 "hotel_id": "H001",
@@ -35,7 +42,9 @@ def test_search_endpoint_returns_documented_contract(client: TestClient) -> None
                 "check_in": "2026-09-18",
                 "check_out": "2026-09-20",
                 "nights": 2,
+                "base_nightly_rate_usd": 150.0,
                 "nightly_rate_usd": 150.0,
+                "base_stay_price_usd": 300.0,
                 "stay_price_usd": 300.0,
             },
             {
@@ -48,7 +57,9 @@ def test_search_endpoint_returns_documented_contract(client: TestClient) -> None
                 "check_in": "2026-10-02",
                 "check_out": "2026-10-04",
                 "nights": 2,
+                "base_nightly_rate_usd": 150.0,
                 "nightly_rate_usd": 150.0,
+                "base_stay_price_usd": 300.0,
                 "stay_price_usd": 300.0,
             },
         ],
@@ -64,8 +75,73 @@ def test_search_endpoint_returns_empty_contract_for_no_match(
     assert response.json() == {
         "query": "Unknown",
         "hotel_count": 0,
+        "pricing": {
+            "daily_search_count": None,
+            "multiplier": 1.0,
+            "adjustment_applied": False,
+            "time_zone": "America/New_York",
+        },
         "results": [],
     }
+
+
+def test_signed_in_searches_receive_personalized_prices(client: TestClient) -> None:
+    login_response = client.post(
+        "/api/auth/login",
+        json={"username": "demo_u001", "password": "demo-pass-u001"},
+    )
+    assert login_response.status_code == 200
+
+    responses = [
+        client.get("/api/hotels/search", params={"name": query})
+        for query in ("Valley Trail", " valley trail ", "VALLEY TRAIL", "Valley Trail")
+    ]
+
+    assert [response.status_code for response in responses] == [200, 200, 200, 200]
+    assert [response.json()["pricing"]["daily_search_count"] for response in responses] == [
+        1, 2, 3, 4
+    ]
+    assert [response.json()["results"][0]["nightly_rate_usd"] for response in responses] == [
+        100.0, 100.0, 100.0, 120.0
+    ]
+    fourth_stay = responses[-1].json()["results"][0]
+    assert fourth_stay["base_nightly_rate_usd"] == 100.0
+    assert fourth_stay["nightly_rate_usd"] == 120.0
+
+
+def test_search_history_survives_restart_and_base_price_does_not_change(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "expedia.sqlite3"
+    credentials = {"username": "demo_u001", "password": "demo-pass-u001"}
+    with TestClient(create_app(database_path, DATA_DIRECTORY)) as first_client:
+        assert first_client.post("/api/auth/login", json=credentials).status_code == 200
+        for _ in range(3):
+            response = first_client.get(
+                "/api/hotels/search", params={"name": "Valley Trail"}
+            )
+            assert response.status_code == 200
+
+    with TestClient(create_app(database_path, DATA_DIRECTORY)) as second_client:
+        assert second_client.post("/api/auth/login", json=credentials).status_code == 200
+        response = second_client.get(
+            "/api/hotels/search", params={"name": "Valley Trail"}
+        )
+
+    assert response.json()["pricing"]["daily_search_count"] == 4
+    assert response.json()["results"][0]["nightly_rate_usd"] == 120.0
+    connection = sqlite3.connect(database_path)
+    try:
+        stored_base = connection.execute(
+            "SELECT nightly_rate_cents FROM hotels WHERE hotel_id = 'H008'"
+        ).fetchone()[0]
+        history_count = connection.execute(
+            "SELECT COUNT(*) FROM search_history WHERE user_id = 'U001'"
+        ).fetchone()[0]
+    finally:
+        connection.close()
+    assert stored_base == 10_000
+    assert history_count == 4
 
 
 def test_search_endpoint_rejects_blank_name(client: TestClient) -> None:

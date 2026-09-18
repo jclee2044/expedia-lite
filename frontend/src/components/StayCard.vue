@@ -92,7 +92,7 @@ function formatDate(date) {
           :disabled="bookingBusy"
           @click="emit('book', stay)"
         >
-          {{ isBooking ? 'Booking…' : bookingEnabled ? 'Book this stay' : 'Choose traveler to book' }}
+          {{ isBooking ? 'Booking…' : bookingEnabled ? 'Book this stay' : 'Log in to book' }}
         </button>
       </div>
     </div>

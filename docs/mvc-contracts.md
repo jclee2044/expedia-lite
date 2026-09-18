@@ -19,6 +19,7 @@ Vue View -> FastAPI route -> business Controller -> database Controller
 - `Trip.hotel_id` references `Hotel.hotel_id`.
 - `Booking.user_id` references `User.user_id`.
 - `Booking.trip_id` references `Trip.trip_id`.
+- `SearchHistory.user_id` references `User.user_id`.
 - SQLite foreign keys enforce these references in addition to controller checks.
 
 `User.username` is case-insensitively unique. `AccountProfile` is the safe,
@@ -26,11 +27,15 @@ password-free projection exchanged outside persistence code.
 
 ## Controller contracts
 
-### Search
+### Search and personalized pricing
 
-- **Input:** a hotel-name query and an open SQLite connection.
-- **Work:** trim and validate the query, read matching joined hotel/trip rows, and calculate nights and prices.
-- **Output:** `HotelSearch` containing `HotelStay` read models.
+- **Input:** a hotel-name query, an open SQLite connection, and an optional authenticated user ID.
+- **Database controller:** inserts a normalized query and UTC timestamp and returns raw history/stay rows. It performs no frequency count, multiplier choice, or price arithmetic.
+- **Search controller:** rejects blank input, coordinates one authenticated write/read transaction, and delegates calculations.
+- **Urgency controller:** maps raw rows to `SearchHistory` records and invokes the model frequency calculation.
+- **Pricing controller:** maps a joined stay row to `HotelStay` and invokes model calculations for nights and prices.
+- **Model:** normalizes query text, derives `America/New_York` day boundaries, counts same-user/same-query records, chooses either 1.00 or 1.20, and calculates effective prices from immutable base cents.
+- **Output:** `HotelSearch` containing shared `SearchPricing` metadata and priced `HotelStay` read models.
 - **Failure:** blank input raises `SearchValidationError`; no match is a successful empty result.
 
 ### Create account and authenticate

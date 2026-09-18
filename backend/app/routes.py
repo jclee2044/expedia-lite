@@ -66,6 +66,17 @@ def require_authenticated_user(request: Request) -> str:
 AuthenticatedUserId = Annotated[str, Depends(require_authenticated_user)]
 
 
+def optional_authenticated_user(request: Request) -> str | None:
+    """Resolve a valid session when present while allowing guest searches."""
+    token = request.cookies.get(SESSION_COOKIE)
+    return request.app.state.sessions.resolve(token)
+
+
+OptionalAuthenticatedUserId = Annotated[
+    str | None, Depends(optional_authenticated_user)
+]
+
+
 def _not_found(error: RecordNotFoundError) -> HTTPException:
     return HTTPException(status_code=404, detail=str(error))
 
@@ -80,11 +91,12 @@ def _database_unavailable() -> HTTPException:
 @router.get("/api/hotels/search", response_model=HotelSearchResponse)
 def search_hotels(
     connection: DatabaseConnection,
+    user_id: OptionalAuthenticatedUserId,
     name: str = Query(description="Case-insensitive partial hotel name"),
 ) -> HotelSearchResponse:
     """Search hotel names and return their joined available stays."""
     try:
-        search = search_hotel_stays(name, connection)
+        search = search_hotel_stays(name, connection, user_id=user_id)
     except sqlite3.DatabaseError as error:
         raise HTTPException(
             status_code=500,

@@ -52,6 +52,13 @@ function clearUserData() {
   bookingError.value = ''
 }
 
+function clearSearchResults() {
+  submittedQuery.value = ''
+  hotelCount.value = 0
+  results.value = []
+  hasSearched.value = false
+}
+
 async function restoreSession() {
   try {
     currentAccount.value = await getCurrentAccount()
@@ -73,6 +80,7 @@ async function handleCreateAccount(credentials) {
       credentials.password,
       credentials.email,
     )
+    clearSearchResults()
     accountMessage.value = `Account created. You are signed in as ${currentAccount.value.username}.`
   } catch (error) {
     currentAccount.value = null
@@ -89,6 +97,7 @@ async function handleLogin(credentials) {
 
   try {
     currentAccount.value = await login(credentials.username, credentials.password)
+    clearSearchResults()
     accountMessage.value = `Welcome back, ${currentAccount.value.username}.`
   } catch (error) {
     currentAccount.value = null
@@ -106,6 +115,7 @@ async function handleLogout() {
     await logout()
     currentAccount.value = null
     clearUserData()
+    clearSearchResults()
     activeView.value = 'search'
     accountMessage.value = 'You are logged out.'
   } catch (error) {

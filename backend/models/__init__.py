@@ -9,6 +9,9 @@ from backend.models.entities import (
     Hotel,
     HotelSearch,
     HotelStay,
+    PriceQuote,
+    SearchHistory,
+    SearchPricing,
     Trip,
     User,
 )
@@ -22,6 +25,9 @@ __all__ = [
     "Hotel",
     "HotelSearch",
     "HotelStay",
+    "PriceQuote",
+    "SearchHistory",
+    "SearchPricing",
     "Trip",
     "User",
 ]

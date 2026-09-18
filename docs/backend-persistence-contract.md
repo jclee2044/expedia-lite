@@ -5,8 +5,8 @@ implementation contract, not a claim that the behavior is already available.
 The implementation must keep framework-free persistence and business logic
 separate from FastAPI routes.
 
-Implementation status: the persistence contract and its schema-version-2
-account extension are implemented. Automated tests cover account creation,
+Implementation status: the persistence contract and its schema-version-3
+search-history extension are implemented. Automated tests cover account creation,
 authentication, process-local sessions, booking ownership, migration,
 creation, cancellation, deletion, history, search, restart persistence, and
 non-reused IDs.
@@ -43,7 +43,7 @@ Every connection must:
 SQLite access will use Python's standard-library `sqlite3` module. No database
 server, ORM, or migration package is required for this milestone.
 
-## Schema version 2
+## Schema version 3
 
 ### `hotels`
 
@@ -83,6 +83,19 @@ every existing ID and booking reference is preserved, deterministic fictional
 demo credentials are assigned, metadata is advanced, and
 `PRAGMA foreign_key_check` must succeed before commit.
 
+### `search_history`
+
+| Column | SQLite representation | Rules |
+| --- | --- | --- |
+| `search_id` | `INTEGER` | Auto-generated primary key |
+| `user_id` | `TEXT` | Required foreign key to `users.user_id` |
+| `query` | `TEXT` | Required normalized, nonblank hotel query |
+| `searched_at_utc` | `TEXT` | Required aware ISO timestamp stored in UTC |
+
+There is one shared table for all accounts. Version 2 databases migrate to
+version 3 by creating this table and its `(user_id, searched_at_utc)` index;
+existing users, bookings, IDs, and hotel base rates are unchanged.
+
 ### `bookings`
 
 | Column | SQLite representation | Rules |
@@ -107,7 +120,7 @@ The database also contains:
 - `id_counters(entity TEXT PRIMARY KEY, last_value INTEGER NOT NULL)` for
   durable public-ID assignment.
 
-Schema version 2 starts booking and user counters at the greatest numeric
+Schema version 3 starts booking and user counters at the greatest numeric
 suffix in their seeded IDs, both `6`. Creating a booking or account increments
 its counter inside the same write transaction and formats the result as
 `B007`/`U007` and so on. Issued IDs are never reused.
@@ -132,11 +145,13 @@ bookings.
 
 ## Derived values and ordering
 
-The database stores source facts, not redundant totals:
+The database stores source facts and raw history, not calculated prices or urgency totals:
 
-- `nights` is `check_out - check_in` in calendar days;
-- `nightly_rate_usd` is `nightly_rate_cents / 100`; and
-- `stay_price_usd` is `nightly_rate_cents * nights / 100`.
+- pure model logic calculates `nights` as `check_out - check_in`;
+- pure model logic counts equivalent searches for the same user during the
+  current `America/New_York` calendar day; and
+- pure model logic returns the base rate for counts 1–3 and base × 1.20 for
+  count 4 onward, rounded half-up to cents without compounding.
 
 Hotel search remains a trimmed, case-insensitive partial match on
 `hotel_name`. Results are ordered by `trip_id`, which preserves the supplied
@@ -145,8 +160,11 @@ starter ordering. Booking history is ordered by `booked_on` descending, then
 
 ## HTTP and JSON contract
 
-The current `GET /api/hotels/search?name=...` contract remains unchanged. Its
-implementation will move from per-request CSV reads to SQLite queries.
+`GET /api/hotels/search?name=...` returns base/effective prices plus a
+`pricing` object containing `daily_search_count`, `multiplier`,
+`adjustment_applied`, and `time_zone`. A valid session causes the normalized
+nonblank query to be recorded before its frequency is measured. Guest searches
+have a null count, use the base price, and do not write history.
 
 ### Accounts and login
 
@@ -265,13 +283,16 @@ history views without additional client-side joins.
 
 - Initial counts are 8 hotels, 12 trips, 6 users, and 6 bookings.
 - Initializing the same database repeatedly does not change those records.
-- Schema version 1 migrates to version 2 without changing user IDs or booking
-  relationships.
+- Schema versions 1 and 2 migrate to version 3 without changing user IDs,
+  booking relationships, or stored hotel base rates.
 - The first new account is `U007`; duplicate usernames are rejected without
   consuming an ID, and account records persist after restart.
 - Login/logout and session expiration work without returning passwords.
 - Search results for `Harbor`, `CAPITOL`, `hotel`, and an unknown name match
   the existing documented screenshots and API response structure.
+- For a $100 base hotel, one account sees $100 for searches 1–3 and $120 from
+  search 4 onward; another user, query, or application day starts at $100.
+- Search history survives restart, while the stored hotel rate remains $100.
 - Demo Traveler 1 initially has bookings `B001` and `B002`; Demo Traveler 6
   initially has an empty history.
 - A signed-in account cannot read, cancel, or delete another account's booking.

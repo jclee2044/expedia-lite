@@ -11,7 +11,9 @@ from backend.controllers.database import (
     allocate_user_id,
     connect_database,
     create_schema,
+    fetch_user_search_history_between,
     initialize_database,
+    insert_search_history,
 )
 from backend.controllers.seed import SeedDataError, SeedStateError
 
@@ -225,8 +227,11 @@ def test_schema_v1_migration_preserves_users_bookings_and_ids(tmp_path: Path) ->
         versions = dict(
             migrated.execute("SELECT key, value FROM app_metadata").fetchall()
         )
-        assert versions["schema_version"] == "2"
+        assert versions["schema_version"] == "3"
         assert versions["seed_version"] == "2"
+        assert migrated.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'search_history'"
+        ).fetchone() is not None
     finally:
         migrated.rollback()
         migrated.close()
@@ -250,6 +255,81 @@ def test_connections_enforce_foreign_keys(tmp_path: Path) -> None:
     finally:
         connection.rollback()
         connection.close()
+
+
+def test_schema_v2_migration_adds_empty_history_and_preserves_data(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "expedia.sqlite3"
+    initialize_database(database_path, DATA_DIRECTORY)
+    connection = connect_database(database_path)
+    try:
+        connection.execute("DROP TABLE search_history")
+        connection.execute(
+            "UPDATE app_metadata SET value = '2' WHERE key = 'schema_version'"
+        )
+        connection.execute(
+            "UPDATE bookings SET status = 'cancelled' WHERE booking_id = 'B001'"
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    assert initialize_database(database_path, DATA_DIRECTORY) is False
+
+    migrated = connect_database(database_path)
+    try:
+        assert migrated.execute(
+            "SELECT value FROM app_metadata WHERE key = 'schema_version'"
+        ).fetchone()["value"] == "3"
+        assert migrated.execute(
+            "SELECT COUNT(*) FROM search_history"
+        ).fetchone()[0] == 0
+        assert migrated.execute(
+            "SELECT status FROM bookings WHERE booking_id = 'B001'"
+        ).fetchone()["status"] == "cancelled"
+        assert migrated.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        migrated.close()
+
+
+def test_search_history_insert_and_interval_read_survive_reopen(tmp_path: Path) -> None:
+    from datetime import datetime, timezone
+
+    database_path = tmp_path / "expedia.sqlite3"
+    initialize_database(database_path, DATA_DIRECTORY)
+    connection = connect_database(database_path)
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        search_id = insert_search_history(
+            connection,
+            "U001",
+            "valley",
+            datetime(2026, 9, 18, 14, tzinfo=timezone.utc),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    reopened = connect_database(database_path)
+    try:
+        rows = fetch_user_search_history_between(
+            reopened,
+            "U001",
+            datetime(2026, 9, 18, tzinfo=timezone.utc),
+            datetime(2026, 9, 19, tzinfo=timezone.utc),
+        )
+        assert search_id == 1
+        assert [dict(row) for row in rows] == [
+            {
+                "search_id": 1,
+                "user_id": "U001",
+                "query": "valley",
+                "searched_at_utc": "2026-09-18T14:00:00+00:00",
+            }
+        ]
+    finally:
+        reopened.close()
 
 
 def test_invalid_seed_data_writes_no_domain_rows(tmp_path: Path) -> None:
