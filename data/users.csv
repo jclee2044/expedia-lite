@@ -1,7 +1,7 @@
-﻿user_id,display_name
-U001,Demo Traveler 1
-U002,Demo Traveler 2
-U003,Demo Traveler 3
-U004,Demo Traveler 4
-U005,Demo Traveler 5
-U006,Demo Traveler 6
+﻿user_id,display_name,username,password,email
+U001,Demo Traveler 1,demo_u001,demo-pass-u001,demo_u001@example.test
+U002,Demo Traveler 2,demo_u002,demo-pass-u002,demo_u002@example.test
+U003,Demo Traveler 3,demo_u003,demo-pass-u003,demo_u003@example.test
+U004,Demo Traveler 4,demo_u004,demo-pass-u004,demo_u004@example.test
+U005,Demo Traveler 5,demo_u005,demo-pass-u005,demo_u005@example.test
+U006,Demo Traveler 6,demo_u006,demo-pass-u006,

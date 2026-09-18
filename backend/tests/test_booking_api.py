@@ -14,37 +14,30 @@ DATA_DIRECTORY = Path(__file__).resolve().parents[2] / "data"
 def client(tmp_path: Path) -> Iterator[TestClient]:
     application = create_app(tmp_path / "expedia.sqlite3", DATA_DIRECTORY)
     with TestClient(application) as test_client:
+        response = test_client.post(
+            "/api/auth/login",
+            json={"username": "demo_u006", "password": "demo-pass-u006"},
+        )
+        assert response.status_code == 200
         yield test_client
 
 
-def test_list_users_returns_seeded_travelers(client: TestClient) -> None:
-    response = client.get("/api/users")
-
-    assert response.status_code == 200
-    body = response.json()
-    assert [user["user_id"] for user in body["users"]] == [
-        "U001",
-        "U002",
-        "U003",
-        "U004",
-        "U005",
-        "U006",
-    ]
-    assert body["users"][0] == {
-        "user_id": "U001",
-        "display_name": "Demo Traveler 1",
-    }
-
-
 def test_seeded_and_empty_history_contracts(client: TestClient) -> None:
-    seeded_response = client.get("/api/users/U001/bookings")
-    empty_response = client.get("/api/users/U006/bookings")
+    empty_response = client.get("/api/account/bookings")
+    client.post("/api/auth/logout")
+    assert client.post(
+        "/api/auth/login",
+        json={"username": "demo_u001", "password": "demo-pass-u001"},
+    ).status_code == 200
+    seeded_response = client.get("/api/account/bookings")
 
     assert seeded_response.status_code == 200
     seeded = seeded_response.json()
     assert seeded["user"] == {
         "user_id": "U001",
         "display_name": "Demo Traveler 1",
+        "username": "demo_u001",
+        "email": "demo_u001@example.test",
     }
     assert seeded["booking_count"] == 2
     assert [booking["booking_id"] for booking in seeded["bookings"]] == [
@@ -75,6 +68,8 @@ def test_seeded_and_empty_history_contracts(client: TestClient) -> None:
         "user": {
             "user_id": "U006",
             "display_name": "Demo Traveler 6",
+            "username": "demo_u006",
+            "email": None,
         },
         "booking_count": 0,
         "bookings": [],
@@ -85,7 +80,7 @@ def test_booking_crud_flow_preserves_cancel_and_delete_semantics(
     client: TestClient,
 ) -> None:
     create_response = client.post(
-        "/api/bookings", json={"user_id": "U006", "trip_id": "T009"}
+        "/api/bookings", json={"trip_id": "T009"}
     )
 
     assert create_response.status_code == 201
@@ -110,7 +105,7 @@ def test_booking_crud_flow_preserves_cancel_and_delete_semantics(
     }
 
     get_response = client.get("/api/bookings/B007")
-    history_response = client.get("/api/users/U006/bookings")
+    history_response = client.get("/api/account/bookings")
     assert get_response.json() == created
     assert history_response.json()["bookings"] == [created]
 
@@ -125,37 +120,27 @@ def test_booking_crud_flow_preserves_cancel_and_delete_semantics(
     assert delete_response.status_code == 204
     assert delete_response.content == b""
     assert client.get("/api/bookings/B007").status_code == 404
-    assert client.get("/api/users/U006/bookings").json()["booking_count"] == 0
+    assert client.get("/api/account/bookings").json()["booking_count"] == 0
 
     next_response = client.post(
-        "/api/bookings", json={"user_id": "U006", "trip_id": "T009"}
+        "/api/bookings", json={"trip_id": "T009"}
     )
     assert next_response.status_code == 201
     assert next_response.json()["booking_id"] == "B008"
 
 
-@pytest.mark.parametrize(
-    ("payload", "expected_detail"),
-    [
-        ({"user_id": "U999", "trip_id": "T001"}, "User U999 was not found."),
-        ({"user_id": "U006", "trip_id": "T999"}, "Trip T999 was not found."),
-    ],
-)
 def test_create_booking_rejects_missing_relations(
     client: TestClient,
-    payload: dict[str, str],
-    expected_detail: str,
 ) -> None:
-    response = client.post("/api/bookings", json=payload)
+    response = client.post("/api/bookings", json={"trip_id": "T999"})
 
     assert response.status_code == 404
-    assert response.json() == {"detail": expected_detail}
+    assert response.json() == {"detail": "Trip T999 was not found."}
 
 
 @pytest.mark.parametrize(
     ("method", "path", "json"),
     [
-        ("get", "/api/users/U999/bookings", None),
         ("get", "/api/bookings/B999", None),
         ("patch", "/api/bookings/B999", {"status": "cancelled"}),
         ("delete", "/api/bookings/B999", None),
@@ -175,8 +160,8 @@ def test_booking_routes_return_not_found(
 @pytest.mark.parametrize(
     ("method", "path", "json"),
     [
-        ("post", "/api/bookings", {"user_id": "invalid", "trip_id": "T001"}),
-        ("post", "/api/bookings", {"user_id": "U006"}),
+        ("post", "/api/bookings", {}),
+        ("post", "/api/bookings", {"user_id": "U006", "trip_id": "T001"}),
         ("patch", "/api/bookings/B001", {"status": "pending"}),
         (
             "patch",
@@ -200,13 +185,22 @@ def test_created_booking_survives_application_restart(tmp_path: Path) -> None:
     database_path = tmp_path / "expedia.sqlite3"
     with TestClient(create_app(database_path, DATA_DIRECTORY)) as first_client:
         create_response = first_client.post(
-            "/api/bookings", json={"user_id": "U006", "trip_id": "T001"}
+            "/api/auth/login",
+            json={"username": "demo_u006", "password": "demo-pass-u006"},
+        )
+        assert create_response.status_code == 200
+        create_response = first_client.post(
+            "/api/bookings", json={"trip_id": "T001"}
         )
         assert create_response.status_code == 201
 
     with TestClient(create_app(database_path, DATA_DIRECTORY)) as second_client:
+        assert second_client.post(
+            "/api/auth/login",
+            json={"username": "demo_u006", "password": "demo-pass-u006"},
+        ).status_code == 200
         booking_response = second_client.get("/api/bookings/B007")
-        history_response = second_client.get("/api/users/U006/bookings")
+        history_response = second_client.get("/api/account/bookings")
 
     assert booking_response.status_code == 200
     assert booking_response.json() == create_response.json()

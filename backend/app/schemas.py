@@ -30,21 +30,33 @@ class HotelSearchResponse(BaseModel):
     results: list[HotelStayResponse]
 
 
-class UserResponse(BaseModel):
+class AccountResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     user_id: str
     display_name: str
+    username: str
+    email: str | None
 
 
-class UserListResponse(BaseModel):
-    users: list[UserResponse]
+class AccountCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    username: str = Field(min_length=3, max_length=32)
+    password: str = Field(min_length=4, max_length=72)
+    email: str | None = Field(default=None, max_length=254)
+
+
+class LoginRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    username: str = Field(min_length=1, max_length=32)
+    password: str = Field(min_length=1, max_length=72)
 
 
 class BookingCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    user_id: str = Field(pattern=r"^U\d+$")
     trip_id: str = Field(pattern=r"^T\d+$")
 
 
@@ -78,6 +90,6 @@ class BookingDetailResponse(BaseModel):
 class BookingHistoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    user: UserResponse
+    user: AccountResponse
     booking_count: int
     bookings: list[BookingDetailResponse]

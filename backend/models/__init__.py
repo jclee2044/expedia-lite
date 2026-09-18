@@ -1,6 +1,7 @@
 """Domain models for Expedia Lite."""
 
 from backend.models.entities import (
+    AccountProfile,
     Booking,
     BookingDetail,
     BookingHistory,
@@ -13,6 +14,7 @@ from backend.models.entities import (
 )
 
 __all__ = [
+    "AccountProfile",
     "Booking",
     "BookingDetail",
     "BookingHistory",

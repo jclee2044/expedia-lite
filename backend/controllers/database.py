@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 
 from backend.controllers.seed import seed_database
-from backend.models.schema import SCHEMA_SQL, SCHEMA_VERSION
+from backend.models.schema import SCHEMA_SQL, SCHEMA_VERSION, USERS_TABLE_SQL
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # Runtime state is kept outside the application and controller packages.
@@ -74,7 +74,7 @@ def connect_database(database_path: Path) -> sqlite3.Connection:
 
 
 def create_schema(connection: sqlite3.Connection) -> None:
-    """Create schema version 1 or reject an incompatible existing database."""
+    """Create the current schema or migrate a supported existing database."""
     metadata_exists = connection.execute(
         """
         SELECT 1
@@ -87,6 +87,10 @@ def create_schema(connection: sqlite3.Connection) -> None:
         version_row = connection.execute(
             "SELECT value FROM app_metadata WHERE key = 'schema_version'"
         ).fetchone()
+
+    if version_row is not None and version_row["value"] == "1":
+        _migrate_schema_v1_to_v2(connection)
+        return
 
     if version_row is not None and version_row["value"] != SCHEMA_VERSION:
         raise DatabaseVersionError(
@@ -101,6 +105,81 @@ def create_schema(connection: sqlite3.Connection) -> None:
             (SCHEMA_VERSION,),
         )
         connection.commit()
+
+
+def _migrate_schema_v1_to_v2(connection: sqlite3.Connection) -> None:
+    """Add account credentials while preserving every user ID and relationship."""
+    seed_row = connection.execute(
+        "SELECT value FROM app_metadata WHERE key = 'seed_version'"
+    ).fetchone()
+    if seed_row is not None and seed_row["value"] not in {"1", "2"}:
+        raise DatabaseVersionError(
+            f"Unsupported database seed version: {seed_row['value']}"
+        )
+
+    foreign_keys_enabled = connection.execute("PRAGMA foreign_keys").fetchone()[0]
+    connection.execute("PRAGMA foreign_keys = OFF")
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        connection.execute(
+            USERS_TABLE_SQL.replace(
+                "CREATE TABLE users", "CREATE TABLE users_v2", 1
+            ).strip()
+        )
+        users = connection.execute(
+            "SELECT user_id, display_name FROM users ORDER BY user_id"
+        ).fetchall()
+        connection.executemany(
+            """
+            INSERT INTO users_v2 (
+                user_id, display_name, username, password, email
+            ) VALUES (?, ?, ?, ?, NULL)
+            """,
+            [
+                (
+                    row["user_id"],
+                    row["display_name"],
+                    f"demo_{row['user_id'].lower()}",
+                    f"demo-pass-{row['user_id'].lower()}",
+                )
+                for row in users
+            ],
+        )
+        connection.execute("DROP TABLE users")
+        connection.execute("ALTER TABLE users_v2 RENAME TO users")
+        greatest_user_suffix = max(
+            (int(row["user_id"][1:]) for row in users),
+            default=0,
+        )
+        connection.execute(
+            """
+            INSERT INTO id_counters (entity, last_value)
+            VALUES ('user', ?)
+            ON CONFLICT(entity) DO UPDATE SET last_value = excluded.last_value
+            """,
+            (greatest_user_suffix,),
+        )
+        connection.execute(
+            "UPDATE app_metadata SET value = ? WHERE key = 'schema_version'",
+            (SCHEMA_VERSION,),
+        )
+        if seed_row is not None:
+            connection.execute(
+                "UPDATE app_metadata SET value = '2' WHERE key = 'seed_version'"
+            )
+        violations = connection.execute("PRAGMA foreign_key_check").fetchall()
+        if violations:
+            raise DatabaseVersionError(
+                "Schema migration would break existing database relationships."
+            )
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.execute(
+            f"PRAGMA foreign_keys = {1 if foreign_keys_enabled else 0}"
+        )
 
 
 def initialize_database(
@@ -131,18 +210,87 @@ def allocate_booking_id(connection: sqlite3.Connection) -> str:
     return f"B{row['last_value']:03d}"
 
 
+def allocate_user_id(connection: sqlite3.Connection) -> str:
+    """Advance the durable user counter inside the caller's transaction."""
+    row = connection.execute(
+        """
+        UPDATE id_counters
+        SET last_value = last_value + 1
+        WHERE entity = 'user'
+        RETURNING last_value
+        """
+    ).fetchone()
+    if row is None:
+        raise RuntimeError("The user ID counter has not been initialized.")
+    return f"U{row['last_value']:03d}"
+
+
 def fetch_users(connection: sqlite3.Connection) -> list[sqlite3.Row]:
     """Read all users in stable ID order."""
     return connection.execute(
-        "SELECT user_id, display_name FROM users ORDER BY user_id"
+        """
+        SELECT user_id, display_name, username, email
+        FROM users
+        ORDER BY user_id
+        """
     ).fetchall()
 
 
 def fetch_user(connection: sqlite3.Connection, user_id: str) -> sqlite3.Row | None:
     """Read one user row."""
     return connection.execute(
-        "SELECT user_id, display_name FROM users WHERE user_id = ?", (user_id,)
+        """
+        SELECT user_id, display_name, username, password, email
+        FROM users
+        WHERE user_id = ?
+        """,
+        (user_id,),
     ).fetchone()
+
+
+def fetch_user_by_username(
+    connection: sqlite3.Connection, username: str
+) -> sqlite3.Row | None:
+    """Read one account by its case-insensitive unique username."""
+    return connection.execute(
+        """
+        SELECT user_id, display_name, username, password, email
+        FROM users
+        WHERE username = ? COLLATE NOCASE
+        """,
+        (username,),
+    ).fetchone()
+
+
+def insert_user(
+    connection: sqlite3.Connection,
+    user_id: str,
+    display_name: str,
+    username: str,
+    password: str,
+    email: str | None,
+) -> None:
+    """Insert one account inside the caller's transaction."""
+    connection.execute(
+        """
+        INSERT INTO users (user_id, display_name, username, password, email)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (user_id, display_name, username, password, email),
+    )
+
+
+def booking_belongs_to_user(
+    connection: sqlite3.Connection, booking_id: str, user_id: str
+) -> bool:
+    """Return whether one persisted booking belongs to the given account."""
+    return (
+        connection.execute(
+            "SELECT 1 FROM bookings WHERE booking_id = ? AND user_id = ?",
+            (booking_id, user_id),
+        ).fetchone()
+        is not None
+    )
 
 
 def trip_exists(connection: sqlite3.Connection, trip_id: str) -> bool:

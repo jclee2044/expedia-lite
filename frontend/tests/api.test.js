@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import { createAccount, getCurrentAccount, login, logout } from '../src/api/accounts.js'
 import {
   createBooking,
   deleteBooking,
@@ -9,7 +10,7 @@ import {
 } from '../src/api/bookings.js'
 import { searchHotels } from '../src/api/hotels.js'
 import { ApiError } from '../src/api/http.js'
-import { getUserBookings, listUsers } from '../src/api/users.js'
+import { getAccountBookings } from '../src/api/users.js'
 
 async function withFetch(stub, action) {
   const originalFetch = globalThis.fetch
@@ -41,34 +42,60 @@ test('searchHotels encodes the query and returns the response body', async () =>
   assert.deepEqual(actual, expected)
 })
 
-test('listUsers requests the documented users endpoint', async () => {
-  const expected = { users: [{ user_id: 'U001', display_name: 'Demo Traveler 1' }] }
-
-  const actual = await withFetch(async (url, options) => {
-    assert.equal(url, '/api/users')
-    assert.deepEqual(options, {})
-    return jsonResponse(expected)
-  }, listUsers)
-
-  assert.deepEqual(actual, expected)
-})
-
-test('getUserBookings safely encodes the traveler identifier', async () => {
+test('getAccountBookings requests authenticated history', async () => {
   await withFetch(async (url, options) => {
-    assert.equal(url, '/api/users/U%20006/bookings')
+    assert.equal(url, '/api/account/bookings')
     assert.deepEqual(options, {})
     return jsonResponse({ user: {}, booking_count: 0, bookings: [] })
-  }, () => getUserBookings('U 006'))
+  }, getAccountBookings)
 })
 
-test('createBooking sends only the documented identifiers as JSON', async () => {
+test('createBooking sends only the trip identifier as JSON', async () => {
   await withFetch(async (url, options) => {
     assert.equal(url, '/api/bookings')
     assert.equal(options.method, 'POST')
     assert.deepEqual(options.headers, { 'Content-Type': 'application/json' })
-    assert.deepEqual(JSON.parse(options.body), { user_id: 'U006', trip_id: 'T001' })
+    assert.deepEqual(JSON.parse(options.body), { trip_id: 'T001' })
     return jsonResponse({ booking_id: 'B007' }, { status: 201 })
-  }, () => createBooking('U006', 'T001'))
+  }, () => createBooking('T001'))
+})
+
+test('createAccount sends optional email and demo credentials', async () => {
+  await withFetch(async (url, options) => {
+    assert.equal(url, '/api/accounts')
+    assert.equal(options.method, 'POST')
+    assert.deepEqual(options.headers, { 'Content-Type': 'application/json' })
+    assert.deepEqual(JSON.parse(options.body), {
+      username: 'harbor_fan',
+      password: 'made-up-pass',
+      email: 'harbor@example.test',
+    })
+    return jsonResponse({ user_id: 'U007', username: 'harbor_fan' }, { status: 201 })
+  }, () => createAccount('harbor_fan', 'made-up-pass', 'harbor@example.test'))
+})
+
+test('login, current account, and logout use the documented endpoints', async () => {
+  await withFetch(async (url, options) => {
+    assert.equal(url, '/api/auth/login')
+    assert.deepEqual(JSON.parse(options.body), {
+      username: 'demo_u001',
+      password: 'demo-pass-u001',
+    })
+    return jsonResponse({ user_id: 'U001', username: 'demo_u001' })
+  }, () => login('demo_u001', 'demo-pass-u001'))
+
+  await withFetch(async (url, options) => {
+    assert.equal(url, '/api/auth/session')
+    assert.deepEqual(options, {})
+    return jsonResponse({ user_id: 'U001', username: 'demo_u001' })
+  }, getCurrentAccount)
+
+  const result = await withFetch(async (url, options) => {
+    assert.equal(url, '/api/auth/logout')
+    assert.deepEqual(options, { method: 'POST' })
+    return new Response(null, { status: 204 })
+  }, logout)
+  assert.equal(result, null)
 })
 
 test('getBooking safely encodes the booking identifier', async () => {
@@ -118,10 +145,10 @@ test('a non-JSON failure uses the operation-specific fallback', async () => {
   await assert.rejects(
     withFetch(
       async () => new Response('Service unavailable', { status: 503 }),
-      () => listUsers(),
+      () => getAccountBookings(),
     ),
     (error) => {
-      assert.equal(error.message, 'Travelers are unavailable. Please try again.')
+      assert.equal(error.message, 'Booking history is unavailable. Please try again.')
       assert.equal(error.status, 503)
       return true
     },

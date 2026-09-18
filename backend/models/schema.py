@@ -1,6 +1,23 @@
 """SQLite representation of Expedia Lite models and relationships."""
 
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
+
+USERS_TABLE_SQL = """
+CREATE TABLE users (
+    user_id TEXT PRIMARY KEY,
+    display_name TEXT NOT NULL CHECK (length(trim(display_name)) > 0),
+    username TEXT NOT NULL COLLATE NOCASE UNIQUE
+        CHECK (length(trim(username)) BETWEEN 3 AND 32),
+    password TEXT NOT NULL CHECK (length(password) BETWEEN 4 AND 72),
+    email TEXT CHECK (
+        email IS NULL OR (
+            length(trim(email)) > 0
+            AND instr(email, '@') > 1
+            AND instr(substr(email, instr(email, '@') + 1), '.') > 1
+        )
+    )
+);
+"""
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS app_metadata (
@@ -31,7 +48,17 @@ CREATE TABLE IF NOT EXISTS trips (
 
 CREATE TABLE IF NOT EXISTS users (
     user_id TEXT PRIMARY KEY,
-    display_name TEXT NOT NULL CHECK (length(trim(display_name)) > 0)
+    display_name TEXT NOT NULL CHECK (length(trim(display_name)) > 0),
+    username TEXT NOT NULL COLLATE NOCASE UNIQUE
+        CHECK (length(trim(username)) BETWEEN 3 AND 32),
+    password TEXT NOT NULL CHECK (length(password) BETWEEN 4 AND 72),
+    email TEXT CHECK (
+        email IS NULL OR (
+            length(trim(email)) > 0
+            AND instr(email, '@') > 1
+            AND instr(substr(email, instr(email, '@') + 1), '.') > 1
+        )
+    )
 );
 
 CREATE TABLE IF NOT EXISTS bookings (

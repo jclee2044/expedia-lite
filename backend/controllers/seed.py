@@ -13,7 +13,7 @@ from typing import cast
 
 from backend.models import Booking, BookingStatus, Hotel, Trip, User
 
-SEED_VERSION = "1"
+SEED_VERSION = "2"
 VALID_BOOKING_STATUSES = {"confirmed", "cancelled"}
 DOMAIN_TABLES = ("hotels", "trips", "users", "bookings")
 
@@ -72,6 +72,34 @@ def _unique_id(value: str, seen: set[str], column: str) -> None:
     seen.add(value)
 
 
+def _username(row: dict[str, str], seen: set[str]) -> str:
+    username = _required_text(row, "username", "users.csv")
+    if re.fullmatch(r"[A-Za-z0-9_.-]{3,32}", username) is None:
+        raise SeedDataError(f"Invalid username: {username}")
+    normalized = username.casefold()
+    if normalized in seen:
+        raise SeedDataError(f"Duplicate username: {username}")
+    seen.add(normalized)
+    return username
+
+
+def _password(row: dict[str, str]) -> str:
+    password = row.get("password") or ""
+    if not 4 <= len(password) <= 72:
+        raise SeedDataError("users.csv contains an invalid password length")
+    return password
+
+
+def _optional_email(row: dict[str, str]) -> str | None:
+    email = (row.get("email") or "").strip()
+    if not email:
+        return None
+    local, separator, domain = email.partition("@")
+    if not separator or not local or "." not in domain:
+        raise SeedDataError(f"Invalid email: {email}")
+    return email
+
+
 def _iso_date(value: str, label: str) -> date:
     try:
         return date.fromisoformat(value)
@@ -108,7 +136,8 @@ def load_seed_data(data_directory: Path) -> SeedData:
         {"trip_id", "hotel_id", "trip_name", "check_in", "check_out"},
     )
     user_rows = _read_rows(
-        data_directory / "users.csv", {"user_id", "display_name"}
+        data_directory / "users.csv",
+        {"user_id", "display_name", "username", "password", "email"},
     )
     booking_rows = _read_rows(
         data_directory / "bookings.csv",
@@ -165,6 +194,7 @@ def load_seed_data(data_directory: Path) -> SeedData:
 
     users: list[User] = []
     user_ids: set[str] = set()
+    usernames: set[str] = set()
     for row in user_rows:
         user_id = _record_id(row, "user_id", "U", "users.csv")
         _unique_id(user_id, user_ids, "user_id")
@@ -172,6 +202,9 @@ def load_seed_data(data_directory: Path) -> SeedData:
             User(
                 user_id=user_id,
                 display_name=_required_text(row, "display_name", "users.csv"),
+                username=_username(row, usernames),
+                password=_password(row),
+                email=_optional_email(row),
             )
         )
 
@@ -248,6 +281,10 @@ def seed_database(connection: sqlite3.Connection, data_directory: Path) -> bool:
         (_booking_suffix(booking.booking_id) for booking in seed_data.bookings),
         default=0,
     )
+    greatest_user_suffix = max(
+        (int(user.user_id[1:]) for user in seed_data.users),
+        default=0,
+    )
 
     try:
         connection.execute("BEGIN IMMEDIATE")
@@ -286,8 +323,21 @@ def seed_database(connection: sqlite3.Connection, data_directory: Path) -> bool:
             ],
         )
         connection.executemany(
-            "INSERT INTO users (user_id, display_name) VALUES (?, ?)",
-            [(user.user_id, user.display_name) for user in seed_data.users],
+            """
+            INSERT INTO users (
+                user_id, display_name, username, password, email
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    user.user_id,
+                    user.display_name,
+                    user.username,
+                    user.password,
+                    user.email,
+                )
+                for user in seed_data.users
+            ],
         )
         connection.executemany(
             """
@@ -309,6 +359,10 @@ def seed_database(connection: sqlite3.Connection, data_directory: Path) -> bool:
         connection.execute(
             "INSERT INTO id_counters (entity, last_value) VALUES ('booking', ?)",
             (greatest_booking_suffix,),
+        )
+        connection.execute(
+            "INSERT INTO id_counters (entity, last_value) VALUES ('user', ?)",
+            (greatest_user_suffix,),
         )
         connection.execute(
             "INSERT INTO app_metadata (key, value) VALUES ('seed_version', ?)",

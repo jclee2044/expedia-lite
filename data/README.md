@@ -5,7 +5,7 @@ These four CSV files contain fictional classroom data for a small travel applica
 | File | One row represents | Rows | Unique ID |
 | --- | --- | --- | --- |
 | `hotels.csv` | One hotel | 8 | `hotel_id` |
-| `users.csv` | One demo traveler | 6 | `user_id` |
+| `users.csv` | One demo classroom account | 6 | `user_id` |
 | `trips.csv` | One offered hotel stay with fixed dates | 12 | `trip_id` |
 | `bookings.csv` | One simulated reservation by a traveler for a trip | 6 | `booking_id` |
 
@@ -56,8 +56,12 @@ Each booking has two references: a traveler ID and a trip ID. They connect the t
 | --- | --- | --- |
 | `user_id` | Unique text ID for the demo traveler | `U001` |
 | `display_name` | Fictional label shown in the application | Demo Traveler 1 |
+| `username` | Unique, case-insensitive demo login name | `demo_u001` |
+| `password` | Readable made-up classroom password | `demo-pass-u001` |
+| `email` | Optional fictional email | `demo_u001@example.test` |
 
-These are demonstration identities, not login accounts. No passwords or personal contact details are provided.
+These are demonstration accounts only. Every credential and `.test` email is
+fictional; never replace them with a personal password or contact address.
 
 ### `trips.csv`
 

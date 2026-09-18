@@ -14,6 +14,7 @@ from backend.controllers.database import (
     DEFAULT_DATA_DIRECTORY,
     initialize_database,
 )
+from backend.controllers.sessions import SessionStore
 
 
 def create_app(
@@ -29,6 +30,7 @@ def create_app(
 
     application = FastAPI(title="Expedia Lite API", lifespan=lifespan)
     application.state.database_path = database_path
+    application.state.sessions = SessionStore()
     application.include_router(router)
     return application
 

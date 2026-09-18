@@ -90,6 +90,22 @@ a:focus-visible {
   background: var(--blue);
 }
 
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.signed-in-name {
+  max-width: 10rem;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .view-nav {
   display: flex;
   gap: 0.35rem;
@@ -113,6 +129,164 @@ a:focus-visible {
 .view-nav button[aria-current="page"] {
   color: white;
   background: var(--blue);
+}
+
+.account-section {
+  width: min(100%, 42rem);
+  margin: 0 auto;
+}
+
+.account-heading {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.account-heading h1 {
+  max-width: 14ch;
+}
+
+.account-heading > p:last-child {
+  max-width: 34rem;
+  margin: 0 auto;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.account-card,
+.signed-in-card {
+  padding: 1.4rem;
+  border: 1px solid rgba(25, 30, 59, 0.1);
+  border-radius: 1rem;
+  background: white;
+  box-shadow: var(--shadow);
+}
+
+.account-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  padding: 0.3rem;
+  border-radius: 0.75rem;
+  background: #f1f3f7;
+}
+
+.account-tabs button {
+  min-height: 2.65rem;
+  border: 0;
+  border-radius: 0.55rem;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.account-tabs button[aria-selected="true"] {
+  color: var(--navy);
+  background: white;
+  box-shadow: 0 2px 8px rgba(25, 30, 59, 0.08);
+}
+
+.account-form {
+  display: grid;
+  margin-top: 1.2rem;
+}
+
+.account-form label {
+  margin: 0.8rem 0 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+.account-form label span {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.account-form input {
+  min-height: 3rem;
+  padding: 0 0.8rem;
+  border: 1.5px solid #8c92a3;
+  border-radius: 0.65rem;
+  color: var(--navy);
+  background: white;
+}
+
+.account-form input:focus {
+  border-color: var(--blue);
+}
+
+.primary-action {
+  min-height: 3rem;
+  margin-top: 1rem;
+  border: 0;
+  border-radius: 0.65rem;
+  color: white;
+  background: var(--blue);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.primary-action:hover:not(:disabled) {
+  background: var(--blue-dark);
+}
+
+.primary-action:disabled,
+.signed-in-card button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.signed-in-card {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.signed-in-card > div {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.account-avatar {
+  display: grid;
+  flex: 0 0 auto;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  background: var(--blue);
+  font-weight: 850;
+}
+
+.signed-in-card p {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.signed-in-card button {
+  min-height: 2.6rem;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--blue);
+  border-radius: 0.55rem;
+  color: var(--blue-dark);
+  background: white;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.account-success {
+  margin: 0.85rem 0 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid #93cdb0;
+  border-radius: 0.75rem;
+  color: #12623f;
+  background: #f2fbf6;
+  text-align: center;
 }
 
 .page-shell {
@@ -908,8 +1082,17 @@ footer p {
     display: none;
   }
 
+  .header-actions {
+    gap: 0.35rem;
+  }
+
+  .signed-in-name {
+    display: none;
+  }
+
   .view-nav button {
-    padding-inline: 0.7rem;
+    padding-inline: 0.6rem;
+    font-size: 0.72rem;
   }
 
   .page-shell {
@@ -919,6 +1102,19 @@ footer p {
 
   .search-hero {
     text-align: left;
+  }
+
+  .account-heading {
+    text-align: left;
+  }
+
+  .account-heading > p:last-child {
+    margin-inline: 0;
+  }
+
+  .signed-in-card {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   h1 {

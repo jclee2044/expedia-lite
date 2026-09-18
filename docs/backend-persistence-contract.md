@@ -5,27 +5,26 @@ implementation contract, not a claim that the behavior is already available.
 The implementation must keep framework-free persistence and business logic
 separate from FastAPI routes.
 
-Implementation status after Turn 5: the complete backend contract is
-implemented and verified through automated tests and two live Uvicorn runs
-against the same temporary SQLite database. Creation, cancellation, deletion,
-history, search, error responses, restart persistence, and non-reused IDs were
-observed over HTTP. Frontend booking/history work is a separate later
-milestone.
+Implementation status: the persistence contract and its schema-version-2
+account extension are implemented. Automated tests cover account creation,
+authentication, process-local sessions, booking ownership, migration,
+creation, cancellation, deletion, history, search, restart persistence, and
+non-reused IDs.
 
 ## Scope
 
 - The four supplied CSV files are immutable seed inputs.
 - Hotels, trips, users, and bookings are copied into SQLite exactly once.
 - After initialization, every application read and write uses SQLite.
-- Hotels, trips, and users are read-only reference data through the public API.
+- Seeded users become demo accounts, and new accounts may be created.
 - Bookings support create, retrieve, status update, and delete operations.
 - Cancelling a booking preserves it with `status = "cancelled"`; deleting a
   booking removes it.
-- Authentication, payments, room inventory, and duplicate-booking prevention
-  are outside this milestone.
+- OAuth, password hashing/recovery, payments, room inventory, and
+  duplicate-booking prevention are outside this classroom milestone.
 
-This scope supports the assignment's two flows: select a seeded stay and create
-a simulated booking, then retrieve that booking in a traveler's history.
+This scope supports creating or logging into an account, booking a seeded stay,
+and retrieving that booking in the signed-in account's history.
 
 ## Runtime database
 
@@ -44,7 +43,7 @@ Every connection must:
 SQLite access will use Python's standard-library `sqlite3` module. No database
 server, ORM, or migration package is required for this milestone.
 
-## Schema version 1
+## Schema version 2
 
 ### `hotels`
 
@@ -75,8 +74,14 @@ seeding. API responses continue to expose `nightly_rate_usd` as a JSON number.
 | --- | --- | --- |
 | `user_id` | `TEXT` | Primary key; preserve values such as `U001` |
 | `display_name` | `TEXT` | Required and non-blank |
+| `username` | `TEXT COLLATE NOCASE` | Required, 3–32 allowed characters, unique without regard to case |
+| `password` | `TEXT` | Required 4–72 character classroom password; never returned by the API |
+| `email` | `TEXT` or `NULL` | Optional syntactically checked fictional email |
 
-The seeded users are synthetic traveler choices, not authenticated accounts.
+Version 1 databases are migrated transactionally: the users table is rebuilt,
+every existing ID and booking reference is preserved, deterministic fictional
+demo credentials are assigned, metadata is advanced, and
+`PRAGMA foreign_key_check` must succeed before commit.
 
 ### `bookings`
 
@@ -102,21 +107,20 @@ The database also contains:
 - `id_counters(entity TEXT PRIMARY KEY, last_value INTEGER NOT NULL)` for
   durable public-ID assignment.
 
-Schema version 1 starts the booking counter at the greatest numeric suffix in
-the seeded booking IDs, which is `6`. Creating a booking increments the counter
-inside the same write transaction and formats the result as `B007`, `B008`, and
-so on. Deleting a booking never decrements the counter, so an issued ID is not
-reused.
+Schema version 2 starts booking and user counters at the greatest numeric
+suffix in their seeded IDs, both `6`. Creating a booking or account increments
+its counter inside the same write transaction and formats the result as
+`B007`/`U007` and so on. Issued IDs are never reused.
 
 ## One-time initialization
 
 Initialization runs before application requests are served:
 
 1. Create the schema and metadata tables when they do not exist.
-2. If `seed_version = 1` is present, do not read any seed CSV.
+2. If `seed_version = 2` is present, do not read any seed CSV.
 3. If no seed marker exists and all four domain tables are empty, validate all
    four CSV files and insert every record in one transaction.
-4. Initialize the booking counter and write the seed marker in that same
+4. Initialize the booking and user counters and write the seed marker in that same
    transaction.
 5. If the marker is absent but any domain table already contains data, stop
    with an initialization error instead of merging or overwriting records.
@@ -144,22 +148,21 @@ starter ordering. Booking history is ordered by `booked_on` descending, then
 The current `GET /api/hotels/search?name=...` contract remains unchanged. Its
 implementation will move from per-request CSV reads to SQLite queries.
 
-### List users
+### Accounts and login
 
-`GET /api/users` returns status `200`:
+`POST /api/accounts` accepts a username, password, and optional email. It
+returns a password-free account profile with status `201` and starts a login
+session. Duplicate usernames return `409` even when the capitalization differs.
 
-```json
-{
-  "users": [
-    {
-      "user_id": "U001",
-      "display_name": "Demo Traveler 1"
-    }
-  ]
-}
-```
+`POST /api/auth/login` accepts a username and password. Invalid credentials
+always return the same `401` message. `GET /api/auth/session` restores the
+current password-free profile, and `POST /api/auth/logout` invalidates the
+session and returns `204`.
 
-Users are ordered by `user_id`.
+Sessions are opaque random tokens stored in an `HttpOnly`, `SameSite=Lax`
+cookie. The process-local session store keeps only user IDs, expires tokens
+after eight hours, and intentionally signs everyone out after a backend
+restart. Account records remain in SQLite.
 
 ### Create a booking
 
@@ -167,29 +170,30 @@ Users are ordered by `user_id`.
 
 ```json
 {
-  "user_id": "U006",
   "trip_id": "T001"
 }
 ```
 
-The backend assigns the next booking ID, the server's current local calendar
-date, and `confirmed` status. It returns status `201` with a booking detail
-response.
+The backend derives `user_id` from the authenticated session, assigns the next
+booking ID, the server's current local calendar date, and `confirmed` status.
+It returns status `201` with a booking detail response.
 
 ### Retrieve a booking
 
 `GET /api/bookings/{booking_id}` returns status `200` with a booking detail
-response.
+response only when the current account owns it.
 
 ### Retrieve booking history
 
-`GET /api/users/{user_id}/bookings` returns status `200`:
+`GET /api/account/bookings` returns status `200` for the current account:
 
 ```json
 {
   "user": {
     "user_id": "U001",
-    "display_name": "Demo Traveler 1"
+    "display_name": "Demo Traveler 1",
+    "username": "demo_u001",
+    "email": "demo_u001@example.test"
   },
   "booking_count": 1,
   "bookings": [
@@ -215,8 +219,8 @@ response.
 }
 ```
 
-An existing user with no bookings receives `booking_count: 0` and an empty
-`bookings` list. An unknown user receives `404`.
+An account with no bookings receives `booking_count: 0` and an empty
+`bookings` list. A missing session receives `401`.
 
 ### Update booking status
 
@@ -247,6 +251,9 @@ history views without additional client-side joins.
 ## Error behavior
 
 - Missing users, trips, or bookings return `404` without exposing SQL details.
+- Missing or expired sessions return `401`; another account's booking is hidden
+  behind `404`.
+- Duplicate usernames return `409`; invalid credentials return a generic `401`.
 - Malformed request bodies and unsupported status values return FastAPI's
   `422` validation response.
 - A blank hotel search retains the existing `400` response and message.
@@ -258,10 +265,16 @@ history views without additional client-side joins.
 
 - Initial counts are 8 hotels, 12 trips, 6 users, and 6 bookings.
 - Initializing the same database repeatedly does not change those records.
+- Schema version 1 migrates to version 2 without changing user IDs or booking
+  relationships.
+- The first new account is `U007`; duplicate usernames are rejected without
+  consuming an ID, and account records persist after restart.
+- Login/logout and session expiration work without returning passwords.
 - Search results for `Harbor`, `CAPITOL`, `hotel`, and an unknown name match
   the existing documented screenshots and API response structure.
 - Demo Traveler 1 initially has bookings `B001` and `B002`; Demo Traveler 6
   initially has an empty history.
+- A signed-in account cannot read, cancel, or delete another account's booking.
 - The first created booking is `B007` and survives closing and reopening the
   database.
 - Cancelling preserves the booking in history; deleting removes it.

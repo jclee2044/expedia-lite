@@ -9,6 +9,7 @@ from typing import cast
 
 from backend.controllers.database import (
     allocate_booking_id,
+    booking_belongs_to_user,
     delete_booking_row,
     fetch_booking,
     fetch_user,
@@ -48,10 +49,16 @@ def booking_from_row(row: sqlite3.Row) -> BookingDetail:
     )
 
 
-def get_booking(connection: sqlite3.Connection, booking_id: str) -> BookingDetail:
+def get_booking(
+    connection: sqlite3.Connection,
+    booking_id: str,
+    user_id: str | None = None,
+) -> BookingDetail:
     """Return one booking joined to its user, trip, and hotel."""
     row = fetch_booking(connection, booking_id)
     if row is None:
+        raise RecordNotFoundError("booking", booking_id)
+    if user_id is not None and row["user_id"] != user_id:
         raise RecordNotFoundError("booking", booking_id)
     return booking_from_row(row)
 
@@ -89,6 +96,7 @@ def update_booking_status(
     connection: sqlite3.Connection,
     booking_id: str,
     status: str,
+    user_id: str | None = None,
 ) -> BookingDetail:
     """Update a booking's status while preserving the booking record."""
     if status not in VALID_BOOKING_STATUSES:
@@ -96,6 +104,10 @@ def update_booking_status(
 
     try:
         connection.execute("BEGIN IMMEDIATE")
+        if user_id is not None and not booking_belongs_to_user(
+            connection, booking_id, user_id
+        ):
+            raise RecordNotFoundError("booking", booking_id)
         if not update_booking_status_row(connection, booking_id, status):
             raise RecordNotFoundError("booking", booking_id)
         connection.commit()
@@ -105,10 +117,18 @@ def update_booking_status(
     return get_booking(connection, booking_id)
 
 
-def delete_booking(connection: sqlite3.Connection, booking_id: str) -> None:
+def delete_booking(
+    connection: sqlite3.Connection,
+    booking_id: str,
+    user_id: str | None = None,
+) -> None:
     """Permanently remove one booking."""
     try:
         connection.execute("BEGIN IMMEDIATE")
+        if user_id is not None and not booking_belongs_to_user(
+            connection, booking_id, user_id
+        ):
+            raise RecordNotFoundError("booking", booking_id)
         if not delete_booking_row(connection, booking_id):
             raise RecordNotFoundError("booking", booking_id)
         connection.commit()

@@ -16,3 +16,15 @@ class BookingValidationError(ValueError):
 
 class SearchValidationError(ValueError):
     """Raised when a hotel search query is not usable."""
+
+
+class AccountValidationError(ValueError):
+    """Raised when new account data does not meet the documented contract."""
+
+
+class DuplicateUsernameError(ValueError):
+    """Raised when an account username is already present."""
+
+
+class AuthenticationError(ValueError):
+    """Raised when supplied credentials do not authenticate an account."""

@@ -21,6 +21,9 @@ Vue View -> FastAPI route -> business Controller -> database Controller
 - `Booking.trip_id` references `Trip.trip_id`.
 - SQLite foreign keys enforce these references in addition to controller checks.
 
+`User.username` is case-insensitively unique. `AccountProfile` is the safe,
+password-free projection exchanged outside persistence code.
+
 ## Controller contracts
 
 ### Search
@@ -30,18 +33,32 @@ Vue View -> FastAPI route -> business Controller -> database Controller
 - **Output:** `HotelSearch` containing `HotelStay` read models.
 - **Failure:** blank input raises `SearchValidationError`; no match is a successful empty result.
 
+### Create account and authenticate
+
+- **Create input:** username, plaintext classroom password, optional email, and an open connection.
+- **Create work:** normalize and validate input, begin one write transaction, enforce case-insensitive username uniqueness, allocate the next durable user ID, insert the account, and commit.
+- **Authenticate input:** username, password, and an open connection.
+- **Output:** a password-free `AccountProfile`.
+- **Failure:** invalid fields, duplicate usernames, and invalid credentials use distinct framework-free errors. Authentication never reveals whether the username or password failed.
+
+### Track the current account
+
+- **Input:** an opaque session token generated with the Python standard library.
+- **Work:** store only the user ID, expire the token after eight hours, and invalidate it on logout. Sessions are process-local and are cleared by a backend restart.
+- **HTTP boundary:** FastAPI alone reads and writes the `HttpOnly`, `SameSite=Lax` cookie.
+
 ### Create booking
 
-- **Input:** an existing `user_id`, existing `trip_id`, and an open connection.
+- **Input:** the authenticated session's `user_id`, an existing `trip_id`, and an open connection.
 - **Work:** begin one write transaction, check both references, allocate the next durable ID, insert a confirmed booking, and commit.
 - **Output:** the saved `BookingDetail`, including its server-issued ID and date.
 - **Failure:** a missing reference raises `RecordNotFoundError`; the transaction rolls back, creates no record, and consumes no ID.
 
 ### Read booking or history
 
-- **Input:** a booking ID or user ID and an open connection.
+- **Input:** a booking ID or the authenticated session's user ID and an open connection.
 - **Output:** a joined `BookingDetail` or `BookingHistory`. An existing user with no bookings receives an empty history.
-- **Failure:** an unknown booking or user raises `RecordNotFoundError`.
+- **Failure:** an unknown booking, user, or booking owned by another account raises `RecordNotFoundError`.
 
 ### Update booking
 

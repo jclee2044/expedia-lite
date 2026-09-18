@@ -1,13 +1,13 @@
 # Expedia Lite
 
-Expedia Lite is a small local travel-booking prototype inspired by Expedia. The backend supports SQLite-backed hotel-name search, synthetic traveler selection, booking creation and confirmation, booking history, status updates, and deletion. The frontend presents responsive hotel search, traveler selection, stay cards, backend-sourced booking confirmation, persisted booking history, cancellation, and guarded permanent deletion.
+Expedia Lite is a small local travel-booking prototype inspired by Expedia. The backend supports SQLite-backed hotel-name search, classroom account creation and login, authenticated booking creation and confirmation, booking history, status updates, and deletion. The frontend presents responsive hotel search, account controls, stay cards, backend-sourced booking confirmation, personalized persisted history, cancellation, and guarded permanent deletion.
 
 ## Architecture
 
-- **Vue interface:** presents hotel search and matching stays through a mobile-first, reference-inspired card layout. It loads synthetic travelers, creates bookings through FastAPI, renders backend-sourced confirmation details, retrieves each traveler's persisted history, cancels confirmed bookings, and requires a second explicit action before permanent deletion.
-- **FastAPI API:** acts as the HTTP boundary, validating JSON, calling controllers, and translating controller failures into responses.
-- **Python Models:** framework-free entity and read objects represent hotels, trips, users, bookings, search results, and their relationships. The model schema records the SQLite representation.
-- **Python Controllers:** own SQLite connections, seed validation, reference checks, hotel search, user/history queries, booking CRUD, transactions, and price calculation.
+- **Vue interface:** presents hotel search and matching stays through a mobile-first, reference-inspired card layout. It creates accounts, logs users in and out, creates bookings through FastAPI, renders backend-sourced confirmation details, retrieves the signed-in account's persisted history, cancels confirmed bookings, and requires a second explicit action before permanent deletion.
+- **FastAPI API:** acts as the HTTP boundary, validating JSON, managing the opaque `HttpOnly` session cookie, calling controllers, and translating controller failures into responses.
+- **Python Models:** framework-free entity and safe account/read objects represent hotels, trips, users, bookings, search results, and their relationships. The model schema records the SQLite representation.
+- **Python Controllers:** own SQLite connections, schema migration, seed validation, account creation/authentication, process-local sessions, reference checks, hotel search, account history, booking CRUD, authorization, transactions, and price calculation.
 - **Data and persistence:** `data/` contains synthetic initial hotels, users, trips, and bookings. FastAPI seeds those records exactly once into an ignored SQLite database, then all application reads and writes use SQLite.
 
 Vue and FastAPI communicate through the documented JSON contract below. Presentation code stays separate from frontend request code, and FastAPI routes stay separate from domain logic.
@@ -82,7 +82,8 @@ The API is then available at `http://127.0.0.1:8000`, with interactive documenta
 
 `backend/models/schema.py` defines the SQLite representation and relationships.
 `backend/controllers/database.py` owns connection settings, schema-version
-checks, initialization, database operations, and durable booking-ID allocation.
+checks and migration, initialization, database operations, and durable booking
+and user-ID allocation.
 `backend/controllers/seed.py` validates all four related CSV files and imports
 them transactionally only when the database has no seed marker and all domain
 tables are empty.
@@ -135,12 +136,20 @@ Example response:
 
 `hotel_count` counts distinct hotels represented in `results`. A valid name with no matches returns status `200`, a count of `0`, and an empty `results` list. A whitespace-only name returns status `400` with `{"detail": "Enter a hotel name."}`. Omitting the required parameter returns FastAPI's status `422` validation response.
 
-## User and booking API contracts
+## Account and booking API contracts
 
-List the seeded synthetic travelers with `GET /api/users`. Retrieve one
-traveler's joined booking history with
-`GET /api/users/{user_id}/bookings`. An existing traveler without bookings
-returns status `200`, `booking_count: 0`, and an empty `bookings` list.
+Create an account with `POST /api/accounts`, supplying `username`, `password`,
+and optional `email`. Usernames are case-insensitively unique. Account creation
+returns `201` and logs the new account in. Login uses `POST /api/auth/login`;
+`GET /api/auth/session` restores the current account and
+`POST /api/auth/logout` clears it. Sessions use an opaque `HttpOnly`,
+`SameSite=Lax` cookie and expire after eight hours or when the backend process
+restarts. Passwords are readable demo values in SQLite but are never returned
+by the API.
+
+Retrieve the signed-in account's joined booking history with
+`GET /api/account/bookings`. An account without bookings returns status `200`,
+`booking_count: 0`, and an empty `bookings` list.
 
 Create a confirmed booking with:
 
@@ -149,14 +158,14 @@ POST /api/bookings
 Content-Type: application/json
 
 {
-  "user_id": "U006",
   "trip_id": "T001"
 }
 ```
 
-The backend assigns the booking ID and current server date and returns status
-`201` with traveler, trip, hotel, dates, status, nights, nightly rate, and stay
-price. The remaining booking operations are:
+The session supplies the booking's `user_id`; browser requests cannot choose a
+different account. The backend assigns the booking ID and current server date
+and returns status `201` with account, trip, hotel, dates, status, nights,
+nightly rate, and stay price. The remaining authenticated operations are:
 
 ```text
 GET    /api/bookings/{booking_id}
@@ -165,9 +174,10 @@ DELETE /api/bookings/{booking_id}
 ```
 
 The status update accepts only `confirmed` or `cancelled`. Cancellation keeps
-the booking in history; deletion returns status `204` and removes it. Unknown
-users, trips, and bookings return `404`. Malformed request bodies, unsupported
-statuses, and extra update fields return `422`.
+the booking in history; deletion returns status `204` and removes it. Booking
+reads and mutations are limited to the signed-in owner. Missing sessions return
+`401`; unknown trips and bookings return `404`; malformed request bodies,
+unsupported statuses, and extra fields return `422`.
 
 ## Verify
 
@@ -202,7 +212,7 @@ npm run lint
 npm run build
 ```
 
-For an integrated browser check, follow `docs/verification.md`. It covers `Harbor` search, no-result and blank-query states, traveler selection, booking confirmation and persistence, history, cancellation, and guarded deletion.
+For an integrated browser check, follow `docs/verification.md`. It covers account creation, duplicate usernames, login/logout, `Harbor` search, no-result and blank-query states, authenticated booking confirmation and persistence, history, cancellation, and guarded deletion.
 
 ## Durable context and handoffs
 

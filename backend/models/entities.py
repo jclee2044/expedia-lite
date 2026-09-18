@@ -34,10 +34,23 @@ class Trip:
 
 @dataclass(frozen=True)
 class User:
-    """A persisted synthetic traveler."""
+    """A persisted classroom account, including its demo credential."""
 
     user_id: str
     display_name: str
+    username: str
+    password: str
+    email: str | None
+
+
+@dataclass(frozen=True)
+class AccountProfile:
+    """A safe account projection that never exposes the stored password."""
+
+    user_id: str
+    display_name: str
+    username: str
+    email: str | None
 
 
 @dataclass(frozen=True)
@@ -103,6 +116,6 @@ class BookingDetail:
 class BookingHistory:
     """One user and their joined booking records."""
 
-    user: User
+    user: AccountProfile
     booking_count: int
     bookings: list[BookingDetail]

@@ -8,6 +8,7 @@ from backend.controllers.database import (
     DEFAULT_DATABASE_PATH,
     DatabaseVersionError,
     allocate_booking_id,
+    allocate_user_id,
     connect_database,
     create_schema,
     initialize_database,
@@ -50,10 +51,21 @@ def test_initialize_database_seeds_all_supplied_records(tmp_path: Path) -> None:
         ).fetchone()["status"] == "cancelled"
         assert connection.execute(
             "SELECT value FROM app_metadata WHERE key = 'seed_version'"
-        ).fetchone()["value"] == "1"
+        ).fetchone()["value"] == "2"
         assert connection.execute(
             "SELECT last_value FROM id_counters WHERE entity = 'booking'"
         ).fetchone()["last_value"] == 6
+        assert connection.execute(
+            "SELECT last_value FROM id_counters WHERE entity = 'user'"
+        ).fetchone()["last_value"] == 6
+        user = connection.execute(
+            "SELECT username, password, email FROM users WHERE user_id = 'U001'"
+        ).fetchone()
+        assert dict(user) == {
+            "username": "demo_u001",
+            "password": "demo-pass-u001",
+            "email": "demo_u001@example.test",
+        }
     finally:
         connection.close()
 
@@ -125,6 +137,99 @@ def test_booking_ids_are_not_reused_after_delete(tmp_path: Path) -> None:
 
     assert first_id == "B007"
     assert second_id == "B008"
+
+
+def test_user_ids_are_allocated_monotonically(tmp_path: Path) -> None:
+    database_path = tmp_path / "expedia.sqlite3"
+    initialize_database(database_path, DATA_DIRECTORY)
+
+    connection = connect_database(database_path)
+    try:
+        first_id = allocate_user_id(connection)
+        second_id = allocate_user_id(connection)
+        connection.commit()
+    finally:
+        connection.close()
+
+    assert first_id == "U007"
+    assert second_id == "U008"
+
+
+def test_schema_v1_migration_preserves_users_bookings_and_ids(tmp_path: Path) -> None:
+    database_path = tmp_path / "expedia.sqlite3"
+    connection = connect_database(database_path)
+    try:
+        connection.executescript(
+            """
+            CREATE TABLE app_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            INSERT INTO app_metadata VALUES ('schema_version', '1');
+            INSERT INTO app_metadata VALUES ('seed_version', '1');
+            CREATE TABLE users (
+                user_id TEXT PRIMARY KEY,
+                display_name TEXT NOT NULL
+            );
+            CREATE TABLE hotels (
+                hotel_id TEXT PRIMARY KEY,
+                hotel_name TEXT NOT NULL,
+                city TEXT NOT NULL,
+                state TEXT NOT NULL,
+                nightly_rate_cents INTEGER NOT NULL
+            );
+            CREATE TABLE trips (
+                trip_id TEXT PRIMARY KEY,
+                hotel_id TEXT NOT NULL REFERENCES hotels(hotel_id),
+                trip_name TEXT NOT NULL,
+                check_in TEXT NOT NULL,
+                check_out TEXT NOT NULL
+            );
+            CREATE TABLE bookings (
+                booking_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL REFERENCES users(user_id),
+                trip_id TEXT NOT NULL REFERENCES trips(trip_id),
+                booked_on TEXT NOT NULL,
+                status TEXT NOT NULL
+            );
+            CREATE TABLE id_counters (
+                entity TEXT PRIMARY KEY,
+                last_value INTEGER NOT NULL
+            );
+            INSERT INTO users VALUES ('U042', 'Preserved Traveler');
+            INSERT INTO hotels VALUES ('H001', 'Hotel', 'City', 'PA', 10000);
+            INSERT INTO trips VALUES (
+                'T001', 'H001', 'Trip', '2026-09-18', '2026-09-20'
+            );
+            INSERT INTO bookings VALUES (
+                'B001', 'U042', 'T001', '2026-09-01', 'confirmed'
+            );
+            INSERT INTO id_counters VALUES ('booking', 1);
+            """
+        )
+    finally:
+        connection.close()
+
+    assert initialize_database(database_path, DATA_DIRECTORY) is False
+
+    migrated = connect_database(database_path)
+    try:
+        user = migrated.execute(
+            "SELECT * FROM users WHERE user_id = 'U042'"
+        ).fetchone()
+        assert user["display_name"] == "Preserved Traveler"
+        assert user["username"] == "demo_u042"
+        assert user["password"] == "demo-pass-u042"
+        assert migrated.execute(
+            "SELECT user_id FROM bookings WHERE booking_id = 'B001'"
+        ).fetchone()["user_id"] == "U042"
+        assert allocate_user_id(migrated) == "U043"
+        assert migrated.execute("PRAGMA foreign_key_check").fetchall() == []
+        versions = dict(
+            migrated.execute("SELECT key, value FROM app_metadata").fetchall()
+        )
+        assert versions["schema_version"] == "2"
+        assert versions["seed_version"] == "2"
+    finally:
+        migrated.rollback()
+        migrated.close()
 
 
 def test_connections_enforce_foreign_keys(tmp_path: Path) -> None:
