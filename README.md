@@ -12,7 +12,7 @@ Expedia Lite is a small local travel-booking prototype inspired by Expedia. The 
 
 Vue and FastAPI communicate through the documented JSON contract below. Presentation code stays separate from frontend request code, and FastAPI routes stay separate from domain logic.
 
-For hotel search, the Python backend queries the seeded `hotels` and `trips` tables and connects records through `hotel_id`. A signed-in nonblank search is also stored in the shared `search_history` table. Pure Python model logic derives nights, frequency, and the effective search-result price from the stored base rate. FastAPI serializes those values, and Vue displays them without recalculating them.
+For hotel search, the Python backend queries the seeded `hotels` and `trips` tables and connects records through `hotel_id`. A signed-in nonblank search is also stored in the shared `search_history` table. Pure Python model logic derives nights, frequency, and the effective search-result price from the stored base rate. FastAPI serializes those values, and Vue displays them without recalculating them. When a signed-in traveler books a displayed result, the backend validates that result against the recorded search and snapshots its effective nightly rate so confirmation and history keep the quoted price.
 
 ## Main directories
 
@@ -173,14 +173,19 @@ POST /api/bookings
 Content-Type: application/json
 
 {
-  "trip_id": "T001"
+  "trip_id": "T001",
+  "search_query": "Harbor"
 }
 ```
 
 The session supplies the booking's `user_id`; browser requests cannot choose a
-different account. The backend assigns the booking ID and current server date
-and returns status `201` with account, trip, hotel, dates, status, nights,
-nightly rate, and stay price. The remaining authenticated operations are:
+different account. `search_query` supplies the displayed result's search
+context; the backend verifies that the selected trip matches it and derives the
+effective price from the account's recorded searches. It remains optional for
+direct API compatibility, in which case the stored base rate is used. The
+backend assigns the booking ID and current server date, snapshots the quoted
+nightly rate, and returns status `201` with account, trip, hotel, dates, status,
+nights, nightly rate, and stay price. The remaining authenticated operations are:
 
 ```text
 GET    /api/bookings/{booking_id}
@@ -251,7 +256,7 @@ Before transferring work to a new thread or model, follow [the handoff procedure
 
 The backend persistence and booking API decisions are recorded in
 [`docs/backend-persistence-contract.md`](docs/backend-persistence-contract.md).
-That contract is the implementation target for the `sqlite-crud` branch; it is
-implemented in the backend with automated persistence, domain, and API tests.
+That contract is implemented on `main` with automated persistence, domain, and
+API tests.
 The complete frontend booking lifecycle is connected through FastAPI to
 SQLite, including confirmation, history, cancellation, and guarded deletion.

@@ -33,11 +33,16 @@ function formatDate(date) {
   <section class="confirmation-card" aria-labelledby="confirmation-title" tabindex="-1">
     <div class="confirmation-icon" aria-hidden="true">✓</div>
     <div class="confirmation-content">
-      <p class="section-kicker">Booking confirmed</p>
-      <h2 id="confirmation-title">Your stay is saved</h2>
+      <p class="section-kicker">
+        {{ booking.status === 'cancelled' ? 'Booking cancelled' : 'Booking confirmed' }}
+      </p>
+      <h2 id="confirmation-title">
+        {{ booking.status === 'cancelled' ? 'Your cancellation is saved' : 'Your stay is saved' }}
+      </h2>
       <p class="confirmation-lead">
         {{ booking.display_name }}, your simulated booking at
-        <strong>{{ booking.hotel_name }}</strong> is confirmed.
+        <strong>{{ booking.hotel_name }}</strong>
+        {{ booking.status === 'cancelled' ? 'remains in history as cancelled.' : 'is confirmed.' }}
       </p>
 
       <dl class="confirmation-facts">
@@ -47,7 +52,7 @@ function formatDate(date) {
         </div>
         <div>
           <dt>Status</dt>
-          <dd class="status-confirmed">{{ booking.status }}</dd>
+          <dd :class="`status-${booking.status}`">{{ booking.status }}</dd>
         </div>
         <div>
           <dt>Stay</dt>

@@ -45,8 +45,10 @@ Vue My trips view -> authenticated account-history route -> user controller
                   -> populated, empty, loading, or error history state
 ```
 
-Creating a booking derives its user from the active session, validates the trip, advances the
-durable booking ID counter, and inserts a confirmed row in one transaction.
+Creating a booking derives its user from the active session, validates the trip
+against the submitted search context, derives the current server-side quote,
+advances the durable booking ID counter, and inserts the confirmed row and
+quoted nightly rate in one transaction.
 History joins bookings to users, trips, and hotels. Cancellation updates the
 stored status while deletion removes the booking, matching the distinction in
 the sample-data guide.

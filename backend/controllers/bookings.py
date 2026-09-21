@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import cast
 
@@ -12,13 +12,23 @@ from backend.controllers.database import (
     booking_belongs_to_user,
     delete_booking_row,
     fetch_booking,
+    fetch_hotel_stays,
     fetch_user,
+    fetch_user_search_history_between,
     insert_booking,
     trip_exists,
     update_booking_status_row,
 )
 from backend.controllers.errors import BookingValidationError, RecordNotFoundError
+from backend.controllers.pricing import build_priced_stay
+from backend.controllers.urgency import measure_search_frequency
 from backend.models import BookingDetail, BookingStatus
+from backend.models.pricing import (
+    application_day_utc_bounds,
+    normalize_search_query,
+    pricing_context,
+    require_aware_datetime,
+)
 
 VALID_BOOKING_STATUSES = {"confirmed", "cancelled"}
 
@@ -28,7 +38,7 @@ def booking_from_row(row: sqlite3.Row) -> BookingDetail:
     check_in = date.fromisoformat(row["check_in"])
     check_out = date.fromisoformat(row["check_out"])
     nights = (check_out - check_in).days
-    nightly_rate = Decimal(row["nightly_rate_cents"]) / Decimal(100)
+    nightly_rate = Decimal(row["quoted_nightly_rate_cents"]) / Decimal(100)
     return BookingDetail(
         booking_id=row["booking_id"],
         user_id=row["user_id"],
@@ -68,8 +78,10 @@ def create_booking(
     user_id: str,
     trip_id: str,
     booked_on: date | None = None,
+    search_query: str | None = None,
+    searched_at: datetime | None = None,
 ) -> BookingDetail:
-    """Validate references and create a confirmed booking atomically."""
+    """Create a confirmed booking with a stable, server-derived price quote."""
     booking_date = booked_on or date.today()
     try:
         connection.execute("BEGIN IMMEDIATE")
@@ -77,6 +89,38 @@ def create_booking(
             raise RecordNotFoundError("user", user_id)
         if not trip_exists(connection, trip_id):
             raise RecordNotFoundError("trip", trip_id)
+
+        stay_rows = fetch_hotel_stays(connection, search_query or "")
+        stay_row = next((row for row in stay_rows if row["trip_id"] == trip_id), None)
+        if stay_row is None:
+            raise BookingValidationError(
+                "The selected stay does not match the current hotel search."
+            )
+
+        daily_search_count: int | None = None
+        if search_query is not None:
+            normalized_query = normalize_search_query(search_query)
+            if not normalized_query:
+                raise BookingValidationError("Search again before booking this stay.")
+            current_time = require_aware_datetime(
+                searched_at or datetime.now(timezone.utc)
+            )
+            day_start, day_end = application_day_utc_bounds(current_time)
+            history_rows = fetch_user_search_history_between(
+                connection, user_id, day_start, day_end
+            )
+            daily_search_count = measure_search_frequency(
+                history_rows, user_id, normalized_query, current_time
+            )
+            if daily_search_count == 0:
+                raise BookingValidationError("Search again before booking this stay.")
+
+        priced_stay = build_priced_stay(
+            stay_row, pricing_context(daily_search_count)
+        )
+        quoted_nightly_rate_cents = int(
+            priced_stay.nightly_rate_usd * Decimal(100)
+        )
         booking_id = allocate_booking_id(connection)
         insert_booking(
             connection,
@@ -84,6 +128,7 @@ def create_booking(
             user_id,
             trip_id,
             booking_date.isoformat(),
+            quoted_nightly_rate_cents,
         )
         connection.commit()
     except Exception:

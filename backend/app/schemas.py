@@ -70,6 +70,7 @@ class BookingCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     trip_id: str = Field(pattern=r"^T\d+$")
+    search_query: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 class BookingStatusUpdateRequest(BaseModel):

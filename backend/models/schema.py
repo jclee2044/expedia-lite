@@ -1,6 +1,6 @@
 """SQLite representation of Expedia Lite models and relationships."""
 
-SCHEMA_VERSION = "3"
+SCHEMA_VERSION = "4"
 
 USERS_TABLE_SQL = """
 CREATE TABLE users (
@@ -81,6 +81,8 @@ CREATE TABLE IF NOT EXISTS bookings (
     trip_id TEXT NOT NULL,
     booked_on TEXT NOT NULL
         CHECK (date(booked_on) IS NOT NULL AND booked_on = date(booked_on)),
+    quoted_nightly_rate_cents INTEGER NOT NULL
+        CHECK (quoted_nightly_rate_cents >= 0),
     status TEXT NOT NULL CHECK (status IN ('confirmed', 'cancelled')),
     FOREIGN KEY (user_id) REFERENCES users(user_id)
         ON UPDATE RESTRICT ON DELETE RESTRICT,

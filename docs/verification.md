@@ -43,7 +43,8 @@ password-free responses, authenticated booking identity, and ownership.
 The search and API tests also use temporary databases. They verify the existing
 search JSON contract, pure model pricing, New York day boundaries, current-search
 inclusion, user/query/day isolation, non-compounding fourth-search pricing,
-stored-base immutability, and history persistence across restart.
+stored-base immutability, booking-price snapshots, and history persistence
+across restart.
 
 The focused booking checks are:
 
@@ -73,9 +74,10 @@ IDs, and persistence through a second FastAPI application startup.
    duplicate feedback. Then verify a wrong password produces the generic login
    error and a correct password logs in.
 10. While signed in, search `Valley Trail` four times. Confirm the first three
-    searches show $100 nightly and the fourth shows $120. Confirm the customer
-    sees only the effective price, then search again and confirm it stays $120
-    rather than compounding.
+    searches show $100 nightly and the fourth shows $120. Book the fourth result
+    and confirm its confirmation and history retain the displayed $120 nightly
+    and $240 total. Search again and confirm the current offer stays $120 rather
+    than compounding.
 11. Log into a different demo account and search `Valley Trail`; confirm its
     first result is $100. Confirm a different query is counted separately.
 12. Search for `Harbor` and book T001. Confirm the server-issued booking ID,
@@ -101,38 +103,28 @@ horizontal page overflow. Browser console warnings and errors should be empty.
 
 The API contract can also be inspected at `http://127.0.0.1:8000/docs`.
 
-## Frontend live verification evidence
+## Current verification evidence
 
-On 2026-09-17, the integrated browser logged in as the fictional `demo_u001`
-account and submitted `Valley Trail` four times. Searches 1–3 displayed the
-$100 nightly rate; search 4 displayed a $120 nightly rate and $240 stay total
-without exposing the stored base values. After switching
-to `demo_u002`, that account's first identical search remained $100. Restarting
-FastAPI cleared the process-local session but retained history; after logging
-back in, `demo_u001` search 5 remained $120. The browser console contained no
-warnings or errors.
+On 2026-09-21, 85 backend tests passed. They covered fresh schema version 4;
+transactional version-1, version-2, and version-3 migration; preserved IDs and
+foreign keys; accounts and sessions; ownership-protected booking CRUD/history;
+pure pricing calculations; query normalization; New York day boundaries;
+search isolation; non-compounding adjustment; booking-price snapshots; and
+restart persistence. `PRAGMA foreign_key_check` reported no violations.
 
-The earlier account/booking browser walkthrough used fictional `demo_u006`.
-`Harbor` returned one hotel and two stays, booking T001 produced B010, and
-history, refresh, cancellation, logout, login errors, and guarded deletion all
-behaved as documented.
+Ten frontend API-contract tests, frontend lint, and the production build passed.
+The build transformed 20 modules.
 
-B010 was synthetic verification data created during this check. It was removed
-afterward with the ownership-aware controller, leaving the six supplied booking
-rows intact. The durable booking counter remains at 10 by design, so the deleted
-ID cannot be reused.
+The integrated browser walkthrough used the fictional `audit_0921` account.
+Its fourth `Valley Trail` search displayed $120 nightly and $240 total. Booking
+B015 preserved that exact quote in its confirmation and history. Cancellation
+retained B015 with cancelled status; guarded permanent deletion then removed
+only B015 and reduced the displayed history count from four to three. A
+`nonexistent` search displayed the expected no-results state. The browser
+console contained no warnings or errors. Screenshots from this walkthrough are
+linked in `report.md`.
 
-## Backend live verification evidence
-
-On 2026-09-17, 82 backend tests passed. They covered fresh schema version 3,
-transactional version-1 and version-2 migration, preserved IDs and foreign
-keys, accounts and sessions, ownership-protected booking CRUD/history, pure
-pricing calculations, query normalization, New York day boundaries, search
-isolation, non-compounding adjustment, and restart persistence. The default
-runtime database was migrated to schema version 3: it retained U001–U006 and
-all six booking-user links, kept H008's stored base at 10,000 cents, and
-`PRAGMA foreign_key_check` returned no violations.
-
-Ten frontend API tests, frontend lint, and the production build passed. The
-integrated servers were started only for this verification and stopped after
-the check.
+B015 was synthetic verification data and was removed through the application.
+The database keeps its durable ID counter, so deleted booking IDs are not
+reused. Other synthetic audit records in the ignored local runtime database do
+not change the supplied CSV files or committed project data.

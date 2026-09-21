@@ -218,9 +218,16 @@ def post_booking(
 ) -> BookingDetailResponse:
     """Create and return a confirmed booking."""
     try:
-        booking = create_booking(connection, user_id, payload.trip_id)
+        booking = create_booking(
+            connection,
+            user_id,
+            payload.trip_id,
+            search_query=payload.search_query,
+        )
     except RecordNotFoundError as error:
         raise _not_found(error) from error
+    except BookingValidationError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
     except (sqlite3.DatabaseError, RuntimeError) as error:
         raise _database_unavailable() from error
     return BookingDetailResponse.model_validate(booking)

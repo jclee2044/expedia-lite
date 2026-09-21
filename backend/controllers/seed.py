@@ -285,6 +285,12 @@ def seed_database(connection: sqlite3.Connection, data_directory: Path) -> bool:
         (int(user.user_id[1:]) for user in seed_data.users),
         default=0,
     )
+    hotel_rates = {
+        hotel.hotel_id: hotel.nightly_rate_cents for hotel in seed_data.hotels
+    }
+    trip_rates = {
+        trip.trip_id: hotel_rates[trip.hotel_id] for trip in seed_data.trips
+    }
 
     try:
         connection.execute("BEGIN IMMEDIATE")
@@ -342,8 +348,9 @@ def seed_database(connection: sqlite3.Connection, data_directory: Path) -> bool:
         connection.executemany(
             """
             INSERT INTO bookings (
-                booking_id, user_id, trip_id, booked_on, status
-            ) VALUES (?, ?, ?, ?, ?)
+                booking_id, user_id, trip_id, booked_on,
+                quoted_nightly_rate_cents, status
+            ) VALUES (?, ?, ?, ?, ?, ?)
             """,
             [
                 (
@@ -351,6 +358,7 @@ def seed_database(connection: sqlite3.Connection, data_directory: Path) -> bool:
                     booking.user_id,
                     booking.trip_id,
                     booking.booked_on.isoformat(),
+                    trip_rates[booking.trip_id],
                     booking.status,
                 )
                 for booking in seed_data.bookings

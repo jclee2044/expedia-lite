@@ -5,8 +5,9 @@ implementation contract, not a claim that the behavior is already available.
 The implementation must keep framework-free persistence and business logic
 separate from FastAPI routes.
 
-Implementation status: the persistence contract and its schema-version-3
-search-history extension are implemented. Automated tests cover account creation,
+Implementation status: the persistence contract, its schema-version-3
+search-history extension, and its schema-version-4 booking quote snapshot are
+implemented. Automated tests cover account creation,
 authentication, process-local sessions, booking ownership, migration,
 creation, cancellation, deletion, history, search, restart persistence, and
 non-reused IDs.
@@ -43,7 +44,7 @@ Every connection must:
 SQLite access will use Python's standard-library `sqlite3` module. No database
 server, ORM, or migration package is required for this milestone.
 
-## Schema version 3
+## Schema version 4
 
 ### `hotels`
 
@@ -96,6 +97,10 @@ There is one shared table for all accounts. Version 2 databases migrate to
 version 3 by creating this table and its `(user_id, searched_at_utc)` index;
 existing users, bookings, IDs, and hotel base rates are unchanged.
 
+Version 3 databases migrate to version 4 by snapshotting each existing
+booking's related hotel base rate. New bookings retain the server-derived rate
+shown in their search result, so confirmation and history do not change later.
+
 ### `bookings`
 
 | Column | SQLite representation | Rules |
@@ -104,6 +109,7 @@ existing users, bookings, IDs, and hotel base rates are unchanged.
 | `user_id` | `TEXT` | Required foreign key to `users.user_id` |
 | `trip_id` | `TEXT` | Required foreign key to `trips.trip_id` |
 | `booked_on` | `TEXT` | Required ISO date, `YYYY-MM-DD` |
+| `quoted_nightly_rate_cents` | `INTEGER` | Required non-negative rate captured when the booking is created |
 | `status` | `TEXT` | Required; `confirmed` or `cancelled` |
 
 Hotels, trips, and users cannot be deleted through the public API. This keeps
@@ -120,7 +126,7 @@ The database also contains:
 - `id_counters(entity TEXT PRIMARY KEY, last_value INTEGER NOT NULL)` for
   durable public-ID assignment.
 
-Schema version 3 starts booking and user counters at the greatest numeric
+Schema version 4 starts booking and user counters at the greatest numeric
 suffix in their seeded IDs, both `6`. Creating a booking or account increments
 its counter inside the same write transaction and formats the result as
 `B007`/`U007` and so on. Issued IDs are never reused.
@@ -145,7 +151,9 @@ bookings.
 
 ## Derived values and ordering
 
-The database stores source facts and raw history, not calculated prices or urgency totals:
+The database stores source facts, raw search history, and the quoted nightly
+rate captured for each booking. It does not store calculated search-result
+prices or urgency totals:
 
 - pure model logic calculates `nights` as `check_out - check_in`;
 - pure model logic counts equivalent searches for the same user during the
@@ -188,12 +196,15 @@ restart. Account records remain in SQLite.
 
 ```json
 {
-  "trip_id": "T001"
+  "trip_id": "T001",
+  "search_query": "Harbor"
 }
 ```
 
 The backend derives `user_id` from the authenticated session, assigns the next
-booking ID, the server's current local calendar date, and `confirmed` status.
+booking ID, the server's current local calendar date, a server-validated quoted
+nightly rate, and `confirmed` status. `search_query` is optional for direct API
+compatibility; without it the booking uses the stored base rate.
 It returns status `201` with a booking detail response.
 
 ### Retrieve a booking
@@ -283,8 +294,9 @@ history views without additional client-side joins.
 
 - Initial counts are 8 hotels, 12 trips, 6 users, and 6 bookings.
 - Initializing the same database repeatedly does not change those records.
-- Schema versions 1 and 2 migrate to version 3 without changing user IDs,
-  booking relationships, or stored hotel base rates.
+- Schema versions 1–3 migrate to version 4 without changing user IDs,
+  booking relationships, or stored hotel base rates. Existing bookings snapshot
+  their related hotel base rate.
 - The first new account is `U007`; duplicate usernames are rejected without
   consuming an ID, and account records persist after restart.
 - Login/logout and session expiration work without returning passwords.
@@ -293,6 +305,8 @@ history views without additional client-side joins.
 - For a $100 base hotel, one account sees $100 for searches 1–3 and $120 from
   search 4 onward; another user, query, or application day starts at $100.
 - Search history survives restart, while the stored hotel rate remains $100.
+- A booking created from an adjusted search result keeps that quoted rate in
+  confirmation and history.
 - Demo Traveler 1 initially has bookings `B001` and `B002`; Demo Traveler 6
   initially has an empty history.
 - A signed-in account cannot read, cancel, or delete another account's booking.

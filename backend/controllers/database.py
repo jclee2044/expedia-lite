@@ -35,7 +35,7 @@ SELECT
     h.hotel_name,
     h.city,
     h.state,
-    h.nightly_rate_cents,
+    b.quoted_nightly_rate_cents,
     t.check_in,
     t.check_out,
     b.booked_on,
@@ -100,6 +100,10 @@ def create_schema(connection: sqlite3.Connection) -> None:
 
     if version_row is not None and version_row["value"] == "2":
         _migrate_schema_v2_to_v3(connection)
+        version_row = {"value": "3"}
+
+    if version_row is not None and version_row["value"] == "3":
+        _migrate_schema_v3_to_v4(connection)
         return
 
     if version_row is not None and version_row["value"] != SCHEMA_VERSION:
@@ -201,8 +205,45 @@ def _migrate_schema_v2_to_v3(connection: sqlite3.Connection) -> None:
                 connection.execute(statement)
         connection.execute(
             "UPDATE app_metadata SET value = ? WHERE key = 'schema_version'",
+            ("3",),
+        )
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+
+
+def _migrate_schema_v3_to_v4(connection: sqlite3.Connection) -> None:
+    """Snapshot each existing booking's hotel rate for stable history prices."""
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        connection.execute(
+            """
+            ALTER TABLE bookings
+            ADD COLUMN quoted_nightly_rate_cents INTEGER NOT NULL DEFAULT 0
+                CHECK (quoted_nightly_rate_cents >= 0)
+            """
+        )
+        connection.execute(
+            """
+            UPDATE bookings
+            SET quoted_nightly_rate_cents = (
+                SELECT h.nightly_rate_cents
+                FROM trips AS t
+                JOIN hotels AS h ON h.hotel_id = t.hotel_id
+                WHERE t.trip_id = bookings.trip_id
+            )
+            """
+        )
+        connection.execute(
+            "UPDATE app_metadata SET value = ? WHERE key = 'schema_version'",
             (SCHEMA_VERSION,),
         )
+        violations = connection.execute("PRAGMA foreign_key_check").fetchall()
+        if violations:
+            raise DatabaseVersionError(
+                "Schema migration would break existing database relationships."
+            )
         connection.commit()
     except Exception:
         connection.rollback()
@@ -401,15 +442,17 @@ def insert_booking(
     user_id: str,
     trip_id: str,
     booked_on: str,
+    quoted_nightly_rate_cents: int,
 ) -> None:
     """Insert one confirmed booking inside the caller's transaction."""
     connection.execute(
         """
         INSERT INTO bookings (
-            booking_id, user_id, trip_id, booked_on, status
-        ) VALUES (?, ?, ?, ?, 'confirmed')
+            booking_id, user_id, trip_id, booked_on,
+            quoted_nightly_rate_cents, status
+        ) VALUES (?, ?, ?, ?, ?, 'confirmed')
         """,
-        (booking_id, user_id, trip_id, booked_on),
+        (booking_id, user_id, trip_id, booked_on, quoted_nightly_rate_cents),
     )
 
 

@@ -54,8 +54,8 @@ password-free projection exchanged outside persistence code.
 
 ### Create booking
 
-- **Input:** the authenticated session's `user_id`, an existing `trip_id`, and an open connection.
-- **Work:** begin one write transaction, check both references, allocate the next durable ID, insert a confirmed booking, and commit.
+- **Input:** the authenticated session's `user_id`, an existing `trip_id`, optional search context, and an open connection.
+- **Work:** begin one write transaction, check both references, validate the trip against the submitted search, derive the effective quote from that account's recorded searches, allocate the next durable ID, snapshot the quoted nightly rate, insert a confirmed booking, and commit. Direct API calls without search context use the stored base rate.
 - **Output:** the saved `BookingDetail`, including its server-issued ID and date.
 - **Failure:** a missing reference raises `RecordNotFoundError`; the transaction rolls back, creates no record, and consumes no ID.
 

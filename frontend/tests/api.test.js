@@ -60,14 +60,17 @@ test('getAccountBookings requests authenticated history', async () => {
   }, getAccountBookings)
 })
 
-test('createBooking sends only the trip identifier as JSON', async () => {
+test('createBooking sends the selected trip and its search context as JSON', async () => {
   await withFetch(async (url, options) => {
     assert.equal(url, '/api/bookings')
     assert.equal(options.method, 'POST')
     assert.deepEqual(options.headers, { 'Content-Type': 'application/json' })
-    assert.deepEqual(JSON.parse(options.body), { trip_id: 'T001' })
+    assert.deepEqual(JSON.parse(options.body), {
+      trip_id: 'T001',
+      search_query: 'Harbor',
+    })
     return jsonResponse({ booking_id: 'B007' }, { status: 201 })
-  }, () => createBooking('T001'))
+  }, () => createBooking('T001', 'Harbor'))
 })
 
 test('createAccount sends optional email and demo credentials', async () => {

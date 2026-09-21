@@ -148,7 +148,10 @@ async function cancelBooking(booking) {
   mutationError.value = ''
 
   try {
-    await updateBookingStatus(booking.booking_id, 'cancelled')
+    const updatedBooking = await updateBookingStatus(booking.booking_id, 'cancelled')
+    if (confirmedBooking.value?.booking_id === booking.booking_id) {
+      confirmedBooking.value = updatedBooking
+    }
     await loadHistory()
   } catch (error) {
     mutationError.value = error instanceof Error ? error.message : 'The booking could not be updated.'
@@ -163,6 +166,9 @@ async function deleteBookingRecord(booking) {
 
   try {
     await deleteBooking(booking.booking_id)
+    if (confirmedBooking.value?.booking_id === booking.booking_id) {
+      confirmedBooking.value = null
+    }
     await loadHistory()
   } catch (error) {
     mutationError.value = error instanceof Error ? error.message : 'The booking could not be deleted.'
@@ -203,7 +209,7 @@ async function bookStay(stay) {
   confirmedBooking.value = null
 
   try {
-    confirmedBooking.value = await createBooking(stay.trip_id)
+    confirmedBooking.value = await createBooking(stay.trip_id, submittedQuery.value)
     await loadHistory()
     await nextTick()
     confirmationRegion.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -227,6 +233,7 @@ async function submitSearch() {
   }
 
   isLoading.value = true
+  confirmedBooking.value = null
 
   try {
     const search = await searchHotels(query)

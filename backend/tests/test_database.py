@@ -52,6 +52,9 @@ def test_initialize_database_seeds_all_supplied_records(tmp_path: Path) -> None:
             "SELECT status FROM bookings WHERE booking_id = 'B002'"
         ).fetchone()["status"] == "cancelled"
         assert connection.execute(
+            "SELECT quoted_nightly_rate_cents FROM bookings WHERE booking_id = 'B001'"
+        ).fetchone()["quoted_nightly_rate_cents"] == 15000
+        assert connection.execute(
             "SELECT value FROM app_metadata WHERE key = 'seed_version'"
         ).fetchone()["value"] == "2"
         assert connection.execute(
@@ -88,8 +91,9 @@ def test_reinitialization_preserves_changes_and_does_not_reseed(
         connection.execute(
             """
             INSERT INTO bookings (
-                booking_id, user_id, trip_id, booked_on, status
-            ) VALUES (?, 'U006', 'T001', '2026-09-17', 'confirmed')
+                booking_id, user_id, trip_id, booked_on,
+                quoted_nightly_rate_cents, status
+            ) VALUES (?, 'U006', 'T001', '2026-09-17', 15000, 'confirmed')
             """,
             (booking_id,),
         )
@@ -126,8 +130,9 @@ def test_booking_ids_are_not_reused_after_delete(tmp_path: Path) -> None:
         connection.execute(
             """
             INSERT INTO bookings (
-                booking_id, user_id, trip_id, booked_on, status
-            ) VALUES (?, 'U006', 'T001', '2026-09-17', 'confirmed')
+                booking_id, user_id, trip_id, booked_on,
+                quoted_nightly_rate_cents, status
+            ) VALUES (?, 'U006', 'T001', '2026-09-17', 15000, 'confirmed')
             """,
             (first_id,),
         )
@@ -227,7 +232,10 @@ def test_schema_v1_migration_preserves_users_bookings_and_ids(tmp_path: Path) ->
         versions = dict(
             migrated.execute("SELECT key, value FROM app_metadata").fetchall()
         )
-        assert versions["schema_version"] == "3"
+        assert versions["schema_version"] == "4"
+        assert migrated.execute(
+            "SELECT quoted_nightly_rate_cents FROM bookings WHERE booking_id = 'B001'"
+        ).fetchone()["quoted_nightly_rate_cents"] == 10000
         assert versions["seed_version"] == "2"
         assert migrated.execute(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'search_history'"
@@ -248,8 +256,11 @@ def test_connections_enforce_foreign_keys(tmp_path: Path) -> None:
             connection.execute(
                 """
                 INSERT INTO bookings (
-                    booking_id, user_id, trip_id, booked_on, status
-                ) VALUES ('B999', 'U999', 'T001', '2026-09-17', 'confirmed')
+                    booking_id, user_id, trip_id, booked_on,
+                    quoted_nightly_rate_cents, status
+                ) VALUES (
+                    'B999', 'U999', 'T001', '2026-09-17', 15000, 'confirmed'
+                )
                 """
             )
     finally:
@@ -265,6 +276,7 @@ def test_schema_v2_migration_adds_empty_history_and_preserves_data(
     connection = connect_database(database_path)
     try:
         connection.execute("DROP TABLE search_history")
+        connection.execute("ALTER TABLE bookings DROP COLUMN quoted_nightly_rate_cents")
         connection.execute(
             "UPDATE app_metadata SET value = '2' WHERE key = 'schema_version'"
         )
@@ -281,13 +293,16 @@ def test_schema_v2_migration_adds_empty_history_and_preserves_data(
     try:
         assert migrated.execute(
             "SELECT value FROM app_metadata WHERE key = 'schema_version'"
-        ).fetchone()["value"] == "3"
+        ).fetchone()["value"] == "4"
         assert migrated.execute(
             "SELECT COUNT(*) FROM search_history"
         ).fetchone()[0] == 0
         assert migrated.execute(
             "SELECT status FROM bookings WHERE booking_id = 'B001'"
         ).fetchone()["status"] == "cancelled"
+        assert migrated.execute(
+            "SELECT quoted_nightly_rate_cents FROM bookings WHERE booking_id = 'B001'"
+        ).fetchone()["quoted_nightly_rate_cents"] == 15000
         assert migrated.execute("PRAGMA foreign_key_check").fetchall() == []
     finally:
         migrated.close()

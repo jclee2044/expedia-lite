@@ -2,13 +2,13 @@ import { requestJson } from './http.js'
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 
-export async function createBooking(tripId) {
+export async function createBooking(tripId, searchQuery) {
   return requestJson(
     '/api/bookings',
     {
       method: 'POST',
       headers: JSON_HEADERS,
-      body: JSON.stringify({ trip_id: tripId }),
+      body: JSON.stringify({ trip_id: tripId, search_query: searchQuery }),
     },
     'The booking could not be created. Please try again.',
   )

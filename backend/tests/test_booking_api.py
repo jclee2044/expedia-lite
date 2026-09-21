@@ -129,6 +129,56 @@ def test_booking_crud_flow_preserves_cancel_and_delete_semantics(
     assert next_response.json()["booking_id"] == "B008"
 
 
+def test_booking_preserves_the_personalized_search_price(client: TestClient) -> None:
+    client.post("/api/auth/logout")
+    assert client.post(
+        "/api/auth/login",
+        json={"username": "demo_u001", "password": "demo-pass-u001"},
+    ).status_code == 200
+    for _ in range(4):
+        response = client.get(
+            "/api/hotels/search", params={"name": "Valley Trail"}
+        )
+        assert response.status_code == 200
+
+    displayed_stay = response.json()["results"][0]
+    created = client.post(
+        "/api/bookings",
+        json={"trip_id": "T008", "search_query": "Valley Trail"},
+    )
+
+    assert displayed_stay["nightly_rate_usd"] == 120.0
+    assert displayed_stay["stay_price_usd"] == 240.0
+    assert created.status_code == 201
+    assert created.json()["nightly_rate_usd"] == 120.0
+    assert created.json()["stay_price_usd"] == 240.0
+    assert client.get("/api/account/bookings").json()["bookings"][0] == created.json()
+
+
+def test_booking_rejects_unverified_or_mismatched_search_context(
+    client: TestClient,
+) -> None:
+    unverified = client.post(
+        "/api/bookings",
+        json={"trip_id": "T001", "search_query": "Harbor"},
+    )
+    assert unverified.status_code == 400
+    assert unverified.json() == {"detail": "Search again before booking this stay."}
+
+    assert client.get(
+        "/api/hotels/search", params={"name": "Valley Trail"}
+    ).status_code == 200
+    mismatched = client.post(
+        "/api/bookings",
+        json={"trip_id": "T001", "search_query": "Valley Trail"},
+    )
+    assert mismatched.status_code == 400
+    assert mismatched.json() == {
+        "detail": "The selected stay does not match the current hotel search."
+    }
+    assert client.get("/api/account/bookings").json()["booking_count"] == 0
+
+
 def test_create_booking_rejects_missing_relations(
     client: TestClient,
 ) -> None:
@@ -162,6 +212,7 @@ def test_booking_routes_return_not_found(
     [
         ("post", "/api/bookings", {}),
         ("post", "/api/bookings", {"user_id": "U006", "trip_id": "T001"}),
+        ("post", "/api/bookings", {"trip_id": "T001", "search_query": ""}),
         ("patch", "/api/bookings/B001", {"status": "pending"}),
         (
             "patch",

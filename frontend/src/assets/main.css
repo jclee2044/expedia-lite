@@ -663,6 +663,11 @@ h1 {
   background: #fde7e7;
 }
 
+.confirmation-facts .status-cancelled {
+  color: #7d1d1d;
+  text-transform: capitalize;
+}
+
 .booking-facts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
