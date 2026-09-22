@@ -1,50 +1,65 @@
 # Expedia Lite current handoff
 
-Verified from repository and runtime evidence on 2026-09-21. Recheck the Git
-state and named checks before continuing in a later task.
+Verified from repository and runtime evidence on 2026-09-21. Recheck Git state
+and active services before continuing in a later task.
 
-## Objective and architecture
+## Current objective and decisions
 
-Expedia Lite Part 2 is a Vue 3 and FastAPI travel prototype with account
-creation/login, hotel search, simulated booking, persistent history,
-cancellation, and guarded permanent deletion. The supplied CSV files seed
-SQLite once; subsequent application reads and writes use SQLite.
+Expedia Lite Part 2 is implemented, verified, documented, and pushed to
+`origin/main`. The remaining work is submission review rather than application
+development: resolve the local screenshot edits, insert the chosen submitted
+commit into `report.md` if required, and submit the report and demo video.
 
-The dependency direction is:
+The project follows the supplied assignment rather than the obsolete earlier
+assignment summary. No additional evidence-log deliverable is required. The
+application keeps fixed trip dates; an unrestricted date picker was not added
+because it would imply availability behavior outside the assignment data model.
+
+## Architecture and important files
 
 ```text
 Vue View -> FastAPI routes -> framework-free Controllers -> Models/SQLite
 ```
 
-The runtime database is `backend/db/expedia_lite.sqlite3` and is ignored by
-Git. Session tokens are process-local, so a FastAPI restart signs the browser
-out while accounts, searches, and bookings remain persisted.
+- `frontend/src/App.vue` coordinates search, accounts, booking confirmation,
+  history, cancellation, and deletion.
+- `frontend/src/components/` contains the reusable presentation components;
+  `frontend/src/api/` contains browser request code.
+- `backend/app/` contains FastAPI routes and JSON schemas.
+- `backend/controllers/` contains account, search, pricing, persistence, and
+  booking behavior.
+- `backend/models/` contains framework-free entities, calculations, and schema
+  version 4.
+- `backend/db/expedia_lite.sqlite3` is the ignored runtime database. CSV files
+  under `data/` seed it once; later reads and writes use SQLite.
+- `README.md`, `docs/design-pipeline.md`, `docs/verification.md`, and
+  `docs/backend-persistence-contract.md` describe the current implementation.
+- `report.md` contains the Part 2 report and links the committed root-level
+  `Expedia Lite Demo.mp4` demonstration video.
+
+Sessions are process-local, so restarting FastAPI signs the browser out while
+accounts, searches, and bookings remain persisted in SQLite.
 
 ## Completed work
 
-- Fixed the booking-price mismatch exposed by the personalized search rule.
-  Bookings now snapshot the server-derived effective nightly rate shown for
-  the submitted search, and confirmation/history read that quote rather than
-  recalculating from the hotel's base rate.
-- Advanced the schema from version 3 to version 4. Fresh seeds populate quoted
-  rates, and supported version-1, version-2, and version-3 databases migrate
-  transactionally without changing IDs or relationships.
-- The create-booking JSON contract now accepts optional `search_query`.
-  Browser bookings validate the trip against the recorded account search;
-  missing or mismatched context is rejected. Direct API calls that omit the
-  optional context retain the documented base-price behavior.
-- Cleared stale confirmation on a new search or deletion. Cancelling the
-  confirmed booking immediately changes its confirmation copy and status.
-- Updated the README, design, MVC, persistence, and verification contracts.
-- Replaced the obsolete local assignment summary with the current assignment
-  text supplied by the student, including the correct dates and deliverables.
-- Rebuilt `report.md` around the Part 2 assignment headings and current
-  expected/observed evidence. Six current Part 2 screenshots are under
-  `docs/test-screenshots/part2-*.png`; older Part 1 screenshots are preserved.
+- Hotel search, responsive result cards, clear empty/error states, account
+  creation/login/logout, booking confirmation, history, cancellation, and
+  guarded permanent deletion are implemented end to end.
+- All frontend CRUD actions cross FastAPI and use SQLite after one-time CSV
+  seeding. Existing IDs are preserved and new user/booking IDs are monotonic.
+- Personalized search pricing is isolated by account, query, and New York
+  calendar day. Bookings snapshot the effective quoted rate so confirmation
+  and history retain the displayed price.
+- Schema migrations support versions 1 through 4 while preserving records and
+  relationships.
+- Commit `88f9083` contains the quote fix, refreshed assignment documentation,
+  automated coverage, and Part 2 screenshots.
+- Commit `68ce6b0` contains the revised report and the 14 MB demonstration video.
+  It was pushed to `origin/main`.
 
-## Verification
+## Verification evidence
 
-Final automated checks on 2026-09-21:
+The final source verification commands were:
 
 ```bash
 backend/.venv/bin/python -m pytest backend/tests
@@ -54,51 +69,78 @@ npm run lint
 npm run build
 ```
 
-Results: 85 backend tests passed with two upstream TestClient deprecation
-warnings; 10 frontend tests passed; lint passed; Vite built 20 modules.
+Observed results: 85 backend tests passed with two upstream TestClient
+deprecation warnings; 10 frontend API-contract tests passed; lint passed; and
+Vite built 20 modules.
 
-The integrated browser walkthrough used the synthetic `audit_0921` account.
-The fourth `Valley Trail` search showed $120 nightly and $240 total. Booking
-B015 preserved the same quote in confirmation and history, cancellation kept
-the record, guarded deletion removed it, and `nonexistent` produced the clear
-no-results state. The browser console had no warnings or errors.
+The integrated browser walkthrough verified successful and empty searches,
+blank-search feedback, account behavior, booking creation/read/update/delete,
+refresh and restart persistence, responsive cards, and an error-free browser
+console. The fourth signed-in `Valley Trail` search displayed $120 nightly and
+$240 total, and the booking retained that quote in confirmation and history.
 
-Direct inspection of the ignored runtime database showed schema version 4,
-no foreign-key violations, and the following retained synthetic audit rows:
+Direct SQLite inspection showed schema version 4 and no foreign-key violations.
+Synthetic audit bookings B014 and B015 were deleted through the application;
+durable IDs were not reused. Seed CSV files were not modified.
 
-- B011: U008/T001, confirmed, quoted 15000 cents
-- B012: U008/T008, confirmed, quoted 10000 cents (created before the fix)
-- B013: U008/T008, confirmed, quoted 12000 cents (post-fix verification)
+These verification results were not rerun after commit `68ce6b0` because that
+commit changed only `report.md` and added the video.
 
-B014 and B015 were deleted through the application. The durable booking
-counter is 15, so their IDs will not be reused. Seed CSV files were not changed.
-
-## Git state at this checkpoint
+## Git state
 
 - Root: `/Users/jlee/Desktop/psu4/ist402/a1_expedia_lite`
-- Branch: `main`
-- HEAD before the current uncommitted fixes: `ad00ac899ac4b17ad7101fab831ea768abaa11b1`
-- `origin/main`: `a67b2e1fe9c699ad0dddfd0441ac429520b4616f`
-- Local `main` is six commits ahead of `origin/main` before committing this
-  final fix/documentation set.
-- The quote fix, updated tests/docs/report/handoff, and new Part 2 screenshots
-  are uncommitted. Inspect `git status --short` for the exact current list.
-- No dependency declarations or lockfiles changed.
+- Current branch: `main`
+- Latest application-fix checkpoint: `88f9083`
+- Latest report/video checkpoint before this handoff refresh: `68ce6b0`
+- `main` and `origin/main` matched at `68ce6b0` before this documentation-only
+  handoff refresh. After the refresh is pushed, the two refs should match again.
+- Other retained branches: `basic-search` at `71289a2`, `sqlite-crud` at
+  `6192f8f`, and `bonus-features` at `ad00ac8`.
+- No dependency declarations or lockfiles changed during the final fixes.
 
-## Active services and cleanup
+The working tree is not otherwise clean. There are user-owned local changes to
+five Part 2 screenshot PNGs and a local deletion of
+`docs/test-screenshots/part2-booking-history.png`. These screenshot changes are
+not part of the handoff update and must not be discarded or committed without
+reviewing the intended final evidence set.
 
-The task-owned FastAPI and Vite processes used for the final walkthrough were
-stopped cleanly. No project service is intentionally left running. The ignored
-runtime database deliberately retains synthetic local audit data.
+## Active services
 
-## Remaining submission work
+Project-owned demo services were verified listening locally:
 
-- Perform the student-only VS Code Search review requested by the assignment.
-- Record the required under-three-minute demo video.
-- Review `git diff` and the current screenshots, then create the final Git
-  checkpoint and push when the student authorizes it.
-- If the submission format requires the exact Part 2 commit inside `report.md`,
-  replace its pending checkpoint line as part of the chosen final Git workflow.
+- FastAPI: `http://127.0.0.1:8000`, started from the project root with
+  `backend/.venv/bin/python -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000`
+- Vue/Vite: `http://127.0.0.1:5173`, started from `frontend/` with
+  `npm run dev -- --host 127.0.0.1 --port 5173`
 
-Remote decorative hotel photos remain network-dependent, but all meaningful
-hotel, stay, price, and booking information remains readable without them.
+Stop only these project-owned services when the demo is complete.
+
+## Remaining work, risks, and next action
+
+- Review the five modified screenshots and the deleted booking-history image,
+  then intentionally keep, restore, or commit that evidence in a separate step.
+- `report.md` still uses a pending Part 2 checkpoint line. If the submission
+  requires an exact hash inside the uploaded report, replace it with the chosen
+  submitted checkpoint as part of the final submission workflow.
+- The assignment's manual VS Code review and the actual Canvas submission are
+  student actions and have not been independently verified here.
+- Decorative Unsplash images require network access, although all meaningful
+  application content remains readable if they fail to load.
+- The two backend warnings are upstream TestClient deprecations, not test
+  failures.
+
+Recommended next action: review the local screenshot changes before making any
+further Git commit. The next agent should first read `AGENTS.md`, `README.md`,
+this handoff, `docs/verification.md`, and `report.md`, then compare
+`git status --short` with the screenshot references in the report.
+
+## Verification boundary
+
+Verified facts: current architecture, schema version, committed demo video,
+documented automated results, active local ports, branch names, pushed commit
+history through `68ce6b0`, and the current local screenshot changes.
+
+Still requiring user confirmation or fresh verification: whether the local
+screenshot edits are intentional, whether the manual VS Code review is
+complete, which exact commit should be named in the uploaded report, and
+whether the external course submission has been completed.
