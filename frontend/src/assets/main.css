@@ -455,6 +455,107 @@ h1 {
   font-weight: 800;
 }
 
+.zip-demo-panel {
+  max-width: 48rem;
+  margin: 2rem auto 0;
+  padding: 1.25rem;
+  border: 1px solid rgba(25, 30, 59, 0.1);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: 0 7px 22px rgba(25, 30, 59, 0.06);
+}
+
+.zip-demo-heading {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.zip-demo-heading h2 {
+  margin-bottom: 0.35rem;
+  font-size: 1.35rem;
+}
+
+.zip-demo-heading > div > p:last-child {
+  margin-bottom: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.zip-demo-heading button {
+  flex: 0 0 auto;
+  min-height: 2.8rem;
+  padding: 0.7rem 1rem;
+  border: 0;
+  border-radius: 0.65rem;
+  color: white;
+  background: var(--blue);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.zip-demo-heading button:hover:not(:disabled) {
+  background: var(--blue-dark);
+}
+
+.zip-demo-heading button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.zip-demo-feedback:empty {
+  display: none;
+}
+
+.zip-loading {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.zip-loading .loading-ring {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.zip-error {
+  margin-top: 1rem;
+}
+
+.zip-location-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin: 1rem 0 0;
+}
+
+.zip-location-facts div {
+  min-width: 0;
+  padding: 0.75rem;
+  border-radius: 0.6rem;
+  background: #f2f4f7;
+}
+
+.zip-location-facts dt {
+  margin-bottom: 0.25rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.zip-location-facts dd {
+  overflow-wrap: anywhere;
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
 .traveler-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(15rem, 20rem);
@@ -1148,6 +1249,19 @@ footer p {
 
   .results-section {
     margin-top: 3rem;
+  }
+
+  .zip-demo-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .zip-demo-heading button {
+    width: 100%;
+  }
+
+  .zip-location-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .traveler-panel {

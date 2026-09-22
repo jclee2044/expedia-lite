@@ -5,11 +5,13 @@ import { createAccount, getCurrentAccount, login, logout } from './api/accounts.
 import { createBooking, deleteBooking, updateBookingStatus } from './api/bookings.js'
 import { searchHotels } from './api/hotels.js'
 import { ApiError } from './api/http.js'
+import { getDemoZipLocation } from './api/locations.js'
 import { getAccountBookings } from './api/users.js'
 import AccountPanel from './components/AccountPanel.vue'
 import BookingConfirmation from './components/BookingConfirmation.vue'
 import BookingHistory from './components/BookingHistory.vue'
 import StayCard from './components/StayCard.vue'
+import ZipLookupPanel from './components/ZipLookupPanel.vue'
 
 const activeView = ref('search')
 const hotelName = ref('')
@@ -32,6 +34,9 @@ const historyError = ref('')
 const mutationBookingId = ref('')
 const mutationError = ref('')
 const confirmationRegion = ref(null)
+const zipLocation = ref(null)
+const isZipLoading = ref(false)
+const zipError = ref('')
 
 const resultSummary = computed(() => {
   const hotelNoun = hotelCount.value === 1 ? 'hotel' : 'hotels'
@@ -251,6 +256,20 @@ async function submitSearch() {
   }
 }
 
+async function lookupDemoZip() {
+  isZipLoading.value = true
+  zipLocation.value = null
+  zipError.value = ''
+
+  try {
+    zipLocation.value = await getDemoZipLocation()
+  } catch (error) {
+    zipError.value = error instanceof Error ? error.message : 'ZIP lookup failed.'
+  } finally {
+    isZipLoading.value = false
+  }
+}
+
 onMounted(restoreSession)
 </script>
 
@@ -341,6 +360,14 @@ onMounted(restoreSession)
             {{ errorMessage }}
           </p>
         </section>
+
+        <ZipLookupPanel
+          v-if="activeView === 'search'"
+          :is-loading="isZipLoading"
+          :location="zipLocation"
+          :error-message="zipError"
+          @lookup="lookupDemoZip"
+        />
 
         <section
           v-if="activeView === 'search'"

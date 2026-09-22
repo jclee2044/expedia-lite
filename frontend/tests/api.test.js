@@ -10,6 +10,7 @@ import {
 } from '../src/api/bookings.js'
 import { searchHotels } from '../src/api/hotels.js'
 import { ApiError } from '../src/api/http.js'
+import { getDemoZipLocation } from '../src/api/locations.js'
 import { getAccountBookings } from '../src/api/users.js'
 
 async function withFetch(stub, action) {
@@ -48,6 +49,24 @@ test('searchHotels encodes the query and returns the response body', async () =>
     assert.deepEqual(options, {})
     return jsonResponse(expected)
   }, () => searchHotels('Harbor & Bay'))
+
+  assert.deepEqual(actual, expected)
+})
+
+test('getDemoZipLocation uses the backend proxy route', async () => {
+  const expected = {
+    postcode: '16802',
+    country_code: 'us',
+    latitude: 40.803167822,
+    longitude: -77.861384958,
+    locality: 'State College',
+  }
+
+  const actual = await withFetch(async (url, options) => {
+    assert.equal(url, '/api/demo/zip-location')
+    assert.deepEqual(options, {})
+    return jsonResponse(expected)
+  }, getDemoZipLocation)
 
   assert.deepEqual(actual, expected)
 })

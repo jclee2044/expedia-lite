@@ -124,6 +124,17 @@ class HotelSearch:
 
 
 @dataclass(frozen=True)
+class PostcodeLocation:
+    """A resolved postcode location without hotel or price data."""
+
+    postcode: str
+    country_code: str
+    latitude: float
+    longitude: float
+    locality: str | None
+
+
+@dataclass(frozen=True)
 class BookingDetail:
     """A booking joined to its user, trip, and hotel for display."""
 

@@ -78,6 +78,33 @@ backend/.venv/bin/python -m uvicorn backend.app.main:app --reload
 
 The API is then available at `http://127.0.0.1:8000`, with interactive documentation at `http://127.0.0.1:8000/docs`.
 
+Backend environment configuration is loaded by `backend/config.py` from the
+project-root `.env` file. `GET /api/health` reports whether
+`GEOAPIFY_API_KEY` is configured without returning its value. Restart the
+backend after editing `.env` so the running application reloads the setting.
+
+`backend/controllers/geocoding.py` defines the framework-free
+`lookup_us_postcode(postcode)` controller contract. It sends a bounded-time
+forward-geocoding request to Geoapify and returns a `PostcodeLocation` with the
+exact U.S. postcode, country code, coordinates, and an optional locality. A
+successful provider response without an exact valid match raises
+`PostcodeNotFoundError`; request, HTTP, or malformed-response failures raise
+`GeoapifyRequestError`. Missing key configuration raises
+`GeoapifyConfigurationError`. The key and raw provider errors are never part of
+the returned model or controller error text.
+
+`GET /api/demo/zip-location` is a thin demonstration route that asks the
+controller to resolve `16802`. A successful response contains only `postcode`,
+`country_code`, `latitude`, `longitude`, and optional `locality`. Missing
+configuration returns `503`, an unresolved ZIP returns `404`, and provider
+failure returns `502`; these errors contain no credentials or raw provider
+details.
+
+The search view includes a small ZIP lookup demonstration panel. Its button
+calls the local `/api/demo/zip-location` route through the existing Vite proxy
+and displays loading, location, or sanitized backend-error state. The frontend
+never calls Geoapify directly and contains no provider key.
+
 ## SQLite foundation
 
 `backend/models/schema.py` defines the SQLite representation and relationships.

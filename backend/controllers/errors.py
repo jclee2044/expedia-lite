@@ -28,3 +28,19 @@ class DuplicateUsernameError(ValueError):
 
 class AuthenticationError(ValueError):
     """Raised when supplied credentials do not authenticate an account."""
+
+
+class PostcodeNotFoundError(LookupError):
+    """Raised when Geoapify returns no acceptable U.S. postcode result."""
+
+    def __init__(self, postcode: str) -> None:
+        self.postcode = postcode
+        super().__init__(f"U.S. postcode {postcode} could not be resolved.")
+
+
+class GeoapifyRequestError(RuntimeError):
+    """Raised when Geoapify cannot provide a usable response."""
+
+
+class GeoapifyConfigurationError(RuntimeError):
+    """Raised when the backend has no usable Geoapify API key."""

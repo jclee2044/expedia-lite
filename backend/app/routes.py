@@ -15,8 +15,10 @@ from backend.app.schemas import (
     BookingDetailResponse,
     BookingHistoryResponse,
     BookingStatusUpdateRequest,
+    HealthResponse,
     HotelSearchResponse,
     LoginRequest,
+    PostcodeLocationResponse,
 )
 from backend.controllers.accounts import authenticate, create_account, get_account
 from backend.controllers.bookings import (
@@ -31,9 +33,13 @@ from backend.controllers.errors import (
     AuthenticationError,
     BookingValidationError,
     DuplicateUsernameError,
+    GeoapifyConfigurationError,
+    GeoapifyRequestError,
+    PostcodeNotFoundError,
     RecordNotFoundError,
     SearchValidationError,
 )
+from backend.controllers.geocoding import lookup_us_postcode
 from backend.controllers.search import search_hotel_stays
 from backend.controllers.users import list_user_bookings
 
@@ -52,6 +58,40 @@ def get_database(request: Request) -> Iterator[sqlite3.Connection]:
 
 
 DatabaseConnection = Annotated[sqlite3.Connection, Depends(get_database)]
+
+
+@router.get("/api/health", response_model=HealthResponse)
+def get_health(request: Request) -> HealthResponse:
+    """Report service health without exposing configuration values."""
+    key_status = (
+        "key is configured"
+        if request.app.state.geoapify_key_configured
+        else "key is not configured"
+    )
+    return HealthResponse(status="ok", geoapify_api_key=key_status)
+
+
+@router.get("/api/demo/zip-location", response_model=PostcodeLocationResponse)
+def get_demo_zip_location() -> PostcodeLocationResponse:
+    """Resolve the fixed classroom demonstration ZIP through the controller."""
+    try:
+        location = lookup_us_postcode("16802")
+    except GeoapifyConfigurationError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="ZIP location service is not configured.",
+        ) from error
+    except PostcodeNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail="ZIP code 16802 could not be resolved.",
+        ) from error
+    except GeoapifyRequestError as error:
+        raise HTTPException(
+            status_code=502,
+            detail="ZIP location provider is unavailable.",
+        ) from error
+    return PostcodeLocationResponse.model_validate(location)
 
 
 def require_authenticated_user(request: Request) -> str:
