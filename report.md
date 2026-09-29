@@ -5,7 +5,7 @@
 Repository: [https://github.com/jclee2044/expedia-lite](https://github.com/jclee2044/expedia-lite)
 
 - Preserved Part 1 checkpoint: `a67b2e1fe9c699ad0dddfd0441ac429520b4616f`
-- Final Part 2 checkpoint: record the submitted commit ID after the final commit and push.
+- Final Part 2 checkpoint: `ddb02a09986a5bbdb6c2d7730c22eff5426704ec`
 
 ## Implementation
 
@@ -80,3 +80,37 @@ Automated tests, frontend linting, the production build, and browser testing all
 The README, design documentation, verification guide, screenshots, selected prompts, and current handoff have also been updated to reflect the finished application.
 
 Demonstration video: [Expedia Lite Demo](<Expedia Lite Demo.mp4>)
+
+## Assignment 2 — Part 1 working record (2026-09-29)
+
+The current `zip-search` work adds a live Geoapify hotel search around the
+resolved point of a five-digit U.S. ZIP. The hotel list and Leaflet map share
+selection. The research decisions and implementation-time mockup are in
+[Part 1 design notes](docs/assignment2-part1-notes.md). The sketch was not
+prepared before implementation, so it does not fully meet that timing criterion.
+
+Configuration: put `GEOAPIFY_API_KEY` in the ignored project-root `.env` and
+start the backend and frontend using the README commands. Leaflet uses
+OpenStreetMap tiles and requires no separate key. No live place data is treated
+as evidence of prices or bookable rooms.
+
+Verification input: ZIP `16802`, observed on 2026-09-29. Expected: an exact
+U.S. ZIP center, hotel places within a 5 km circle, and a matching list and map.
+Observed: the local API returned HTTP 200 with the requested center and 21
+provider places; the browser displayed 21 entries, markers, the radius circle,
+and tile attribution. Keyboard selection from the list selected a marker, and
+selection from a marker selected the corresponding list item. The live count is
+an observation, not a fixed expectation. Mocked backend tests cover the provider
+request, validation, empty results, and failure handling; frontend API tests
+cover the proxied request.
+
+AI evidence: Codex (GPT-6) inspected the existing project, compared Geoapify
+and Leaflet documentation, and implemented the request beginning “implement the
+plan please.” The ZIP-only lookup was extended to one search flow that resolves
+the ZIP and requests nearby places. An early browser click did not submit the
+form; keyboard submission then verified the running flow. No credentials were
+included in prompts, tests, or this report.
+
+Before submission: add the assessed commit and repository link for this part,
+record a screen demonstration, and confirm whether the course accepts the
+implementation-time sketch despite the pre-implementation mockup requirement.

@@ -5,11 +5,12 @@ import { createAccount, getCurrentAccount, login, logout } from './api/accounts.
 import { createBooking, deleteBooking, updateBookingStatus } from './api/bookings.js'
 import { searchHotels } from './api/hotels.js'
 import { ApiError } from './api/http.js'
-import { getDemoZipLocation } from './api/locations.js'
+import { getNearbyHotels, isValidUsZipCode } from './api/locations.js'
 import { getAccountBookings } from './api/users.js'
 import AccountPanel from './components/AccountPanel.vue'
 import BookingConfirmation from './components/BookingConfirmation.vue'
 import BookingHistory from './components/BookingHistory.vue'
+import NearbyHotelsPanel from './components/NearbyHotelsPanel.vue'
 import StayCard from './components/StayCard.vue'
 import ZipLookupPanel from './components/ZipLookupPanel.vue'
 
@@ -37,6 +38,10 @@ const confirmationRegion = ref(null)
 const zipLocation = ref(null)
 const isZipLoading = ref(false)
 const zipError = ref('')
+const nearbyHotels = ref([])
+const zipHasSearched = ref(false)
+const selectedPlaceId = ref(null)
+const nearbyResultLimit = ref(50)
 
 const resultSummary = computed(() => {
   const hotelNoun = hotelCount.value === 1 ? 'hotel' : 'hotels'
@@ -256,13 +261,29 @@ async function submitSearch() {
   }
 }
 
-async function lookupDemoZip() {
-  isZipLoading.value = true
+function clearZipResult() {
   zipLocation.value = null
   zipError.value = ''
+  nearbyHotels.value = []
+  zipHasSearched.value = false
+  selectedPlaceId.value = null
+}
+
+async function lookupZip(postcode) {
+  clearZipResult()
+  if (!isValidUsZipCode(postcode)) {
+    zipError.value = 'Enter exactly five digits for a U.S. ZIP code.'
+    return
+  }
+
+  isZipLoading.value = true
 
   try {
-    zipLocation.value = await getDemoZipLocation()
+    const search = await getNearbyHotels(postcode)
+    zipLocation.value = search.center
+    nearbyHotels.value = search.hotels
+    nearbyResultLimit.value = search.result_limit
+    zipHasSearched.value = true
   } catch (error) {
     zipError.value = error instanceof Error ? error.message : 'ZIP lookup failed.'
   } finally {
@@ -366,7 +387,17 @@ onMounted(restoreSession)
           :is-loading="isZipLoading"
           :location="zipLocation"
           :error-message="zipError"
-          @lookup="lookupDemoZip"
+          @lookup="lookupZip"
+          @change="clearZipResult"
+        />
+
+        <NearbyHotelsPanel
+          v-if="activeView === 'search' && zipHasSearched"
+          :center="zipLocation"
+          :hotels="nearbyHotels"
+          :result-limit="nearbyResultLimit"
+          :selected-place-id="selectedPlaceId"
+          @select="selectedPlaceId = $event"
         />
 
         <section

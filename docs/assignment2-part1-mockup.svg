@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="570" viewBox="0 0 900 570" role="img" aria-labelledby="title desc">
+  <title id="title">ZIP hotel discovery layout sketch</title>
+  <desc id="desc">A ZIP search above a linked hotel list and map, with annotations for feedback states and selection.</desc>
+  <rect width="900" height="570" fill="#f7f5f2"/>
+  <rect x="30" y="24" width="840" height="60" rx="12" fill="#fff" stroke="#c8cbd1"/>
+  <text x="54" y="62" font-family="sans-serif" font-size="22" fill="#191e3b">Expedia Lite · Find nearby hotels</text>
+  <rect x="30" y="106" width="840" height="126" rx="14" fill="#fff" stroke="#c8cbd1"/>
+  <text x="52" y="137" font-family="sans-serif" font-size="17" font-weight="bold" fill="#191e3b">Find hotels near a U.S. ZIP code</text>
+  <rect x="52" y="155" width="560" height="42" rx="6" fill="#fff" stroke="#596277"/>
+  <text x="67" y="182" font-family="sans-serif" font-size="15" fill="#596277">16802</text>
+  <rect x="627" y="155" width="216" height="42" rx="6" fill="#1668e3"/>
+  <text x="651" y="182" font-family="sans-serif" font-size="15" fill="#fff">Find nearby hotels</text>
+  <text x="52" y="217" font-family="sans-serif" font-size="13" fill="#596277">Feedback: invalid ZIP · loading · unresolved ZIP · no results · provider failure</text>
+  <rect x="30" y="254" width="840" height="287" rx="14" fill="#fff" stroke="#c8cbd1"/>
+  <text x="52" y="285" font-family="sans-serif" font-size="17" font-weight="bold" fill="#191e3b">Hotels near ZIP 16802</text>
+  <text x="52" y="305" font-family="sans-serif" font-size="12" fill="#596277">Within 5 km of the resolved ZIP point · provider results, not room availability</text>
+  <rect x="52" y="323" width="285" height="193" rx="8" fill="#f6f8fb" stroke="#c8cbd1"/>
+  <rect x="65" y="338" width="260" height="48" rx="6" fill="#eaf2ff" stroke="#1668e3" stroke-width="2"/>
+  <text x="79" y="367" font-family="sans-serif" font-size="14" fill="#191e3b">Selected hotel · address</text>
+  <rect x="65" y="396" width="260" height="48" rx="6" fill="#fff" stroke="#c8cbd1"/>
+  <text x="79" y="425" font-family="sans-serif" font-size="14" fill="#191e3b">Another hotel · address</text>
+  <rect x="65" y="454" width="260" height="48" rx="6" fill="#fff" stroke="#c8cbd1"/>
+  <text x="79" y="483" font-family="sans-serif" font-size="14" fill="#191e3b">Another hotel · address</text>
+  <rect x="356" y="323" width="487" height="193" rx="8" fill="#e7efe6" stroke="#c8cbd1"/>
+  <circle cx="597" cy="420" r="77" fill="none" stroke="#1668e3" stroke-width="2"/>
+  <circle cx="570" cy="399" r="10" fill="#191e3b" stroke="#fff" stroke-width="2"/>
+  <circle cx="619" cy="430" r="8" fill="#1668e3" stroke="#fff" stroke-width="2"/>
+  <circle cx="584" cy="457" r="8" fill="#1668e3" stroke="#fff" stroke-width="2"/>
+  <text x="369" y="505" font-family="sans-serif" font-size="11" fill="#596277">Map tiles © OpenStreetMap contributors</text>
+  <path d="M340 358 L554 398" fill="none" stroke="#1668e3" stroke-width="2" stroke-dasharray="5 5"/>
+  <text x="365" y="341" font-family="sans-serif" font-size="12" fill="#1668e3">Selection stays in sync</text>
+</svg>

@@ -135,6 +135,27 @@ class PostcodeLocation:
 
 
 @dataclass(frozen=True)
+class ExternalHotel:
+    """A Geoapify place; it has no booking or nightly-rate claim."""
+
+    place_id: str
+    name: str | None
+    address: str | None
+    latitude: float
+    longitude: float
+
+
+@dataclass(frozen=True)
+class NearbyHotelSearch:
+    """Hotels returned within a fixed radius of a resolved ZIP point."""
+
+    center: PostcodeLocation
+    radius_meters: int
+    result_limit: int
+    hotels: list[ExternalHotel]
+
+
+@dataclass(frozen=True)
 class BookingDetail:
     """A booking joined to its user, trip, and hotel for display."""
 

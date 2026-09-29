@@ -24,6 +24,25 @@ class PostcodeLocationResponse(BaseModel):
     locality: str | None
 
 
+class ExternalHotelResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    place_id: str
+    name: str | None
+    address: str | None
+    latitude: float
+    longitude: float
+
+
+class NearbyHotelSearchResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    center: PostcodeLocationResponse
+    radius_meters: int
+    result_limit: int
+    hotels: list[ExternalHotelResponse]
+
+
 class HotelStayResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
