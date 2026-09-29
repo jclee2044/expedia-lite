@@ -56,8 +56,15 @@ watch(() => props.selectedPlaceId, async (placeId) => {
           :aria-pressed="selectedPlaceId === hotel.place_id"
           @click="$emit('select', hotel.place_id)"
         >
-          <strong>{{ hotel.name || 'Name unavailable' }}</strong>
-          <span>{{ hotel.address || 'Address unavailable' }}</span>
+          <span class="nearby-card-title">
+            <span class="nearby-card-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 21V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16M3 21h18M9 21v-5h6v5M8 8h2m4 0h2M8 12h2m4 0h2" />
+              </svg>
+            </span>
+            <strong>{{ hotel.name || 'Name unavailable' }}</strong>
+          </span>
+          <span class="nearby-card-address">{{ hotel.address || 'Address unavailable' }}</span>
         </button>
       </div>
       <NearbyHotelsMap

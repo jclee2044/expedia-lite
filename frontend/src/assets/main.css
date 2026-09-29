@@ -628,7 +628,34 @@ h1 {
   cursor: pointer;
 }
 
-.nearby-card span {
+.nearby-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.nearby-card-title strong {
+  min-width: 0;
+}
+
+.nearby-card-icon {
+  display: grid;
+  flex: 0 0 2rem;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #e8f1ff;
+  color: var(--blue);
+}
+
+.nearby-card-icon svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.nearby-card-address {
   color: var(--muted);
   font-size: 0.82rem;
 }
