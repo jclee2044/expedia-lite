@@ -2,11 +2,20 @@ import shutil
 import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from fastapi.testclient import TestClient
 
+import backend.app.main as app_main
+import backend.app.routes as app_routes
 from backend.app.main import create_app
+from backend.controllers.errors import (
+    GeoapifyConfigurationError,
+    GeoapifyRequestError,
+    PostcodeNotFoundError,
+)
+from backend.models import ExternalHotel, NearbyHotelSearch, PostcodeLocation
 
 DATA_DIRECTORY = Path(__file__).resolve().parents[2] / "data"
 
@@ -16,6 +25,194 @@ def client(tmp_path: Path) -> Iterator[TestClient]:
     application = create_app(tmp_path / "expedia.sqlite3", DATA_DIRECTORY)
     with TestClient(application) as test_client:
         yield test_client
+
+
+@pytest.mark.parametrize(
+    ("configured", "expected_status"),
+    [
+        (True, "key is configured"),
+        (False, "key is not configured"),
+    ],
+)
+def test_health_reports_only_geoapify_configuration_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    configured: bool,
+    expected_status: str,
+) -> None:
+    monkeypatch.setattr(
+        app_main,
+        "geoapify_key_is_configured",
+        lambda: configured,
+    )
+    application = create_app(tmp_path / "expedia.sqlite3", DATA_DIRECTORY)
+
+    with TestClient(application) as test_client:
+        response = test_client.get("/api/health")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "geoapify_api_key": expected_status,
+    }
+
+
+def test_demo_zip_location_returns_mocked_controller_result(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    controller = Mock(
+        return_value=PostcodeLocation(
+            postcode="16802",
+            country_code="us",
+            latitude=40.7982,
+            longitude=-77.8599,
+            locality="University Park",
+        )
+    )
+    monkeypatch.setattr(app_routes, "lookup_us_postcode", controller)
+
+    response = client.get("/api/demo/zip-location")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "postcode": "16802",
+        "country_code": "us",
+        "latitude": 40.7982,
+        "longitude": -77.8599,
+        "locality": "University Park",
+    }
+    controller.assert_called_once_with("16802")
+
+
+def test_zip_location_preserves_leading_zeroes(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    controller = Mock(
+        return_value=PostcodeLocation(
+            postcode="00501",
+            country_code="us",
+            latitude=40.8154,
+            longitude=-73.0451,
+            locality="Holtsville",
+        )
+    )
+    monkeypatch.setattr(app_routes, "lookup_us_postcode", controller)
+
+    response = client.get("/api/zip-location", params={"postcode": "00501"})
+
+    assert response.status_code == 200
+    assert response.json()["postcode"] == "00501"
+    controller.assert_called_once_with("00501")
+
+
+def test_nearby_hotels_returns_json_contract(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    center = PostcodeLocation("00501", "us", 40.8154, -73.0451, "Holtsville")
+    controller = Mock(return_value=NearbyHotelSearch(
+        center=center,
+        radius_meters=5000,
+        result_limit=50,
+        hotels=[ExternalHotel("place-1", None, "1 Example St", 40.82, -73.04)],
+    ))
+    monkeypatch.setattr(app_routes, "search_nearby_hotels", controller)
+
+    response = client.get("/api/hotels/nearby", params={"postcode": "00501"})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "center": {
+            "postcode": "00501", "country_code": "us", "latitude": 40.8154,
+            "longitude": -73.0451, "locality": "Holtsville",
+        },
+        "radius_meters": 5000,
+        "result_limit": 50,
+        "hotels": [{
+            "place_id": "place-1", "name": None, "address": "1 Example St",
+            "latitude": 40.82, "longitude": -73.04,
+        }],
+    }
+    controller.assert_called_once_with("00501")
+
+
+@pytest.mark.parametrize("postcode", ["", "1234", "123456", "12a45"])
+def test_nearby_hotels_rejects_invalid_zip(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, postcode: str,
+) -> None:
+    controller = Mock()
+    monkeypatch.setattr(app_routes, "search_nearby_hotels", controller)
+    assert client.get("/api/hotels/nearby", params={"postcode": postcode}).status_code == 422
+    controller.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("error", "status"),
+    [
+        (GeoapifyConfigurationError("credential-bearing detail"), 503),
+        (PostcodeNotFoundError("00501"), 404),
+        (GeoapifyRequestError("credential-bearing detail"), 502),
+    ],
+)
+def test_nearby_hotels_sanitizes_errors(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, error: Exception, status: int,
+) -> None:
+    monkeypatch.setattr(app_routes, "search_nearby_hotels", Mock(side_effect=error))
+    response = client.get("/api/hotels/nearby", params={"postcode": "00501"})
+    assert response.status_code == status
+    assert "credential" not in response.text
+
+
+@pytest.mark.parametrize("postcode", ["", "1234", "123456", "12a45", "12 45", "１２３４５"])
+def test_zip_location_rejects_non_five_digit_input(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    postcode: str,
+) -> None:
+    controller = Mock()
+    monkeypatch.setattr(app_routes, "lookup_us_postcode", controller)
+
+    response = client.get("/api/zip-location", params={"postcode": postcode})
+
+    assert response.status_code == 422
+    controller.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("controller_error", "status_code", "detail"),
+    [
+        (
+            GeoapifyConfigurationError("credential-bearing detail"),
+            503,
+            "ZIP location service is not configured.",
+        ),
+        (
+            PostcodeNotFoundError("16802"),
+            404,
+            "ZIP code 16802 could not be resolved.",
+        ),
+        (
+            GeoapifyRequestError("credential-bearing detail"),
+            502,
+            "ZIP location provider is unavailable.",
+        ),
+    ],
+)
+def test_demo_zip_location_maps_controller_errors_without_details(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    controller_error: Exception,
+    status_code: int,
+    detail: str,
+) -> None:
+    controller = Mock(side_effect=controller_error)
+    monkeypatch.setattr(app_routes, "lookup_us_postcode", controller)
+
+    response = client.get("/api/demo/zip-location")
+
+    assert response.status_code == status_code
+    assert response.json() == {"detail": detail}
+    assert "credential" not in response.text
+    controller.assert_called_once_with("16802")
 
 
 def test_search_endpoint_returns_documented_contract(client: TestClient) -> None:

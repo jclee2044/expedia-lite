@@ -1,146 +1,60 @@
 # Expedia Lite current handoff
 
-Verified from repository and runtime evidence on 2026-09-21. Recheck Git state
-and active services before continuing in a later task.
+Refreshed from repository and local runtime evidence on 2026-09-29. Recheck this record against Git and the named files before continuing in another thread. This snapshot includes uncommitted work and does not assert that a submission is complete.
 
-## Current objective and decisions
+## Objective and decisions
 
-Expedia Lite Part 2 is implemented, verified, documented, and pushed to
-`origin/main`. The remaining work is submission review rather than application
-development: resolve the local screenshot edits, insert the chosen submitted
-commit into `report.md` if required, and submit the report and demo video.
+The active work is Assignment 2 Part 1: search live Geoapify hotel places by an exact five-digit U.S. ZIP code, then show and synchronize those places in a Vue list and Leaflet map. The original fictional hotel-name search and booking flow remain available as a separate search mode. Geoapify places are not presented as bookable inventory and have no invented prices, ratings, or availability.
 
-The project follows the supplied assignment rather than the obsolete earlier
-assignment summary. No additional evidence-log deliverable is required. The
-application keeps fixed trip dates; an unrestricted date picker was not added
-because it would imply availability behavior outside the assignment data model.
+Recent uncommitted UI work keeps Name and ZIP Code search in separate modes, uses the same hero sentence and search-control layout, aligns their empty states, applies a green brand palette, and uses a shared responsive heading size across Search, My trips, and Account. The ZIP search button says “Search.” The footer contains Expedia Lite, copyright 2026, and Jacob Lee's attribution. Nearby hotel cards now split provider display addresses into street lines and a city/state/ZIP line, omitting a repeated hotel name and U.S. country suffix. The map circle uses the current brand color and the attribution is placed at the bottom right.
 
-## Architecture and important files
+Assignment 2 Part 2, the persistent shortlist, is described in docs/assignment2-description.md but has not been implemented on this branch.
 
-```text
-Vue View -> FastAPI routes -> framework-free Controllers -> Models/SQLite
-```
+## Architecture and file map
 
-- `frontend/src/App.vue` coordinates search, accounts, booking confirmation,
-  history, cancellation, and deletion.
-- `frontend/src/components/` contains the reusable presentation components;
-  `frontend/src/api/` contains browser request code.
-- `backend/app/` contains FastAPI routes and JSON schemas.
-- `backend/controllers/` contains account, search, pricing, persistence, and
-  booking behavior.
-- `backend/models/` contains framework-free entities, calculations, and schema
-  version 4.
-- `backend/db/expedia_lite.sqlite3` is the ignored runtime database. CSV files
-  under `data/` seed it once; later reads and writes use SQLite.
-- `README.md`, `docs/design-pipeline.md`, `docs/verification.md`, and
-  `docs/backend-persistence-contract.md` describe the current implementation.
-- `report.md` contains the Part 2 report and links the committed root-level
-  `Expedia Lite Demo.mp4` demonstration video.
+Vue View -> FastAPI routes -> framework-free Controllers -> Models/SQLite.
 
-Sessions are process-local, so restarting FastAPI signs the browser out while
-accounts, searches, and bookings remain persisted in SQLite.
-
-## Completed work
-
-- Hotel search, responsive result cards, clear empty/error states, account
-  creation/login/logout, booking confirmation, history, cancellation, and
-  guarded permanent deletion are implemented end to end.
-- All frontend CRUD actions cross FastAPI and use SQLite after one-time CSV
-  seeding. Existing IDs are preserved and new user/booking IDs are monotonic.
-- Personalized search pricing is isolated by account, query, and New York
-  calendar day. Bookings snapshot the effective quoted rate so confirmation
-  and history retain the displayed price.
-- Schema migrations support versions 1 through 4 while preserving records and
-  relationships.
-- Commit `88f9083` contains the quote fix, refreshed assignment documentation,
-  automated coverage, and Part 2 screenshots.
-- Commit `68ce6b0` contains the revised report and the 14 MB demonstration video.
-  It was pushed to `origin/main`.
-
-## Verification evidence
-
-The final source verification commands were:
-
-```bash
-backend/.venv/bin/python -m pytest backend/tests
-cd frontend
-npm test
-npm run lint
-npm run build
-```
-
-Observed results: 85 backend tests passed with two upstream TestClient
-deprecation warnings; 10 frontend API-contract tests passed; lint passed; and
-Vite built 20 modules.
-
-The integrated browser walkthrough verified successful and empty searches,
-blank-search feedback, account behavior, booking creation/read/update/delete,
-refresh and restart persistence, responsive cards, and an error-free browser
-console. The fourth signed-in `Valley Trail` search displayed $120 nightly and
-$240 total, and the booking retained that quote in confirmation and history.
-
-Direct SQLite inspection showed schema version 4 and no foreign-key violations.
-Synthetic audit bookings B014 and B015 were deleted through the application;
-durable IDs were not reused. Seed CSV files were not modified.
-
-These verification results were not rerun after commit `68ce6b0` because that
-commit changed only `report.md` and added the video.
+- frontend/src/App.vue owns view/search state, including the Name/ZIP switch and selected Geoapify place ID. frontend/src/assets/main.css owns layout.
+- frontend/src/components/ZipLookupPanel.vue renders ZIP input and feedback. NearbyHotelsPanel.vue renders the places list, using hotelAddress.js for display formatting; NearbyHotelsMap.vue renders the Leaflet map and markers. frontend/src/api/locations.js makes proxied API requests, so the provider key does not enter the Vue bundle.
+- backend/app/routes.py exposes the ZIP and nearby-hotel endpoints. backend/controllers/geocoding.py and the Places controller handle provider requests; backend/models/ contains framework-free data contracts.
+- The original account, booking, and fictional stay flows use SQLite. CSV files in data/ seed the ignored runtime database once.
+- README.md documents setup, run commands, both search modes, and API behavior. Assignment 2 scope is in docs/assignment2-description.md; research decisions and the implementation-time sketch are in docs/assignment2-part1-notes.md and docs/assignment2-part1-mockup.svg. docs/verification.md mainly describes the older name-search/booking workflow and historical results. report.md is the uncommitted Assignment 2 Part 1 submission draft; a1-report.md is also present but has not been reviewed for this handoff.
 
 ## Git state
 
-- Root: `/Users/jlee/Desktop/psu4/ist402/a1_expedia_lite`
-- Current branch: `main`
-- Latest application-fix checkpoint: `88f9083`
-- Latest report/video checkpoint before this handoff refresh: `68ce6b0`
-- `main` and `origin/main` matched at `68ce6b0` before this documentation-only
-  handoff refresh. After the refresh is pushed, the two refs should match again.
-- Other retained branches: `basic-search` at `71289a2`, `sqlite-crud` at
-  `6192f8f`, and `bonus-features` at `ad00ac8`.
-- No dependency declarations or lockfiles changed during the final fixes.
+- Root: /Users/jlee/Desktop/psu4/ist402/a1_expedia_lite
+- Branch: zip-search; HEAD: 7dc9f5b7c0161742145987397ac56765843b9d88 (Add hotel icons to nearby result cards, 2026-09-29).
+- Earlier Part 1 implementation: 8a2cd73 (Add ZIP-based Geoapify hotel search and map). geoapify-impl points to 8fdbb19, the earlier ZIP lookup demo.
+- zip-search has no configured upstream. Local main tracks origin/main at ddb02a0. origin is configured for the GitHub Expedia Lite repository. No remote fetch was performed for this handoff, so remote freshness is unknown.
+- The working tree is dirty. Modified tracked files: .gitignore, README.md, frontend/src/App.vue, frontend/src/assets/main.css, frontend/src/components/NearbyHotelsMap.vue, frontend/src/components/NearbyHotelsPanel.vue, frontend/src/components/ZipLookupPanel.vue, handoffs/current.md, and report.md. Expedia Lite Demo.mp4 is deleted. Untracked paths: Expedia Lite A1 Demo.mp4, Expedia Lite A2.1 Demo.mov, a1-report.md, docs/mockups/, frontend/src/components/hotelAddress.js, and frontend/tests/hotelAddress.test.js. README.md and this handoff were edited during this documentation refresh; other changes predated it. Video contents, a1-report.md, and mockup image contents were not reviewed here. No Git history change was made.
+- .env, backend/.venv, frontend/node_modules, and frontend/dist are ignored by Git. No credentials or environment values were inspected.
 
-The working tree is not otherwise clean. There are user-owned local changes to
-five Part 2 screenshot PNGs and a local deletion of
-`docs/test-screenshots/part2-booking-history.png`. These screenshot changes are
-not part of the handoff update and must not be discarded or committed without
-reviewing the intended final evidence set.
+## Completed and incomplete work
 
-## Active services
+- Committed Part 1: exact U.S. ZIP resolution, Geoapify hotel places within 5 km, a 50-result provider cap, list/map selection in both directions, keyboard-selectable places, map pin labels, and OpenStreetMap attribution.
+- Uncommitted UI: Name/ZIP mode switch with sliding indicator; matching search controls and empty states; green branding; consistent headings and footer; map attribution placement and brand-colored radius; removal of the provider name from a visible results label; formatted hotel card addresses. Review all modified and untracked files intentionally before any checkpoint.
+- report.md has been rewritten as an Assignment 2 Part 1 draft. It records research, mockup choices, live-search observations, and AI use; it links the untracked Expedia Lite A2.1 Demo.mov file. It still has TODOs for the assessed commit and confirmation of the mockup's creation timing. The video contents and the report's manual observations were not independently verified during this refresh.
+- The persistent shortlist required for Assignment 2 Part 2 remains future work. Do not infer live room availability from Geoapify places.
 
-Project-owned demo services were verified listening locally:
+## Verification observed for this handoff
 
-- FastAPI: `http://127.0.0.1:8000`, started from the project root with
-  `backend/.venv/bin/python -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000`
-- Vue/Vite: `http://127.0.0.1:5173`, started from `frontend/` with
-  `npm run dev -- --host 127.0.0.1 --port 5173`
+- On this documentation refresh, `backend/.venv/bin/python -m pytest backend/tests`: 118 passed, 2 dependency deprecation warnings.
+- From `frontend/`, `npm test`: 16 passed, including three address-formatting cases.
+- From `frontend/`, `./node_modules/.bin/oxlint .` and `./node_modules/.bin/eslint .`: both passed without output. These read-only commands avoid the `--fix` options in `npm run lint`.
+- From `frontend/`, `npm run build`: passed; Vite transformed 27 modules.
+- `git diff --check` passed after the documentation edits. An earlier UI-work turn reported `npm run lint` passing; that auto-fixing command was not rerun in this refresh.
+- git check-ignore -v .env backend/.venv frontend/node_modules frontend/dist: all four paths ignored.
 
-Stop only these project-owned services when the demo is complete.
+Browser checks during UI work showed the Name/ZIP switch, matching input and empty-state layouts, a one-line Search title at a 753 px viewport, and the Account title at the same computed font size. A live ZIP 16802 result was visible while verifying address display: the Scholar Hotel State College card showed “205 East Beaver Avenue” and “State College, PA 16801” on separate lines without the country; a provider address with an extra locality displayed three lines. This was not a complete integrated walkthrough. The My trips title shares the Search CSS rule; its signed-in view was not opened here. Historical live ZIP counts in report.md are not fixed expectations.
 
-## Remaining work, risks, and next action
+## Active services and limits of inspection
 
-- Review the five modified screenshots and the deleted booking-history image,
-  then intentionally keep, restore, or commit that evidence in a separate step.
-- `report.md` still uses a pending Part 2 checkpoint line. If the submission
-  requires an exact hash inside the uploaded report, replace it with the chosen
-  submitted checkpoint as part of the final submission workflow.
-- The assignment's manual VS Code review and the actual Canvas submission are
-  student actions and have not been independently verified here.
-- Decorative Unsplash images require network access, although all meaningful
-  application content remains readable if they fail to load.
-- The two backend warnings are upstream TestClient deprecations, not test
-  failures.
+At this refresh, `lsof -nP -iTCP:5173 -iTCP:8000 -sTCP:LISTEN` found node listening at 127.0.0.1:5173 (PID 31052) and Python at 127.0.0.1:8000 (PID 31055). Their startup commands and ownership by this task were not verified; neither was current HTTP health. Earlier browser interactions are described above and in report.md, but no fresh integrated browser walkthrough was run during this documentation refresh. Do not stop these processes without confirming ownership; only stop processes started for the current task.
 
-Recommended next action: review the local screenshot changes before making any
-further Git commit. The next agent should first read `AGENTS.md`, `README.md`,
-this handoff, `docs/verification.md`, and `report.md`, then compare
-`git status --short` with the screenshot references in the report.
+## Risks, next action, and verification boundary
 
-## Verification boundary
+- The Part 1 submission is due 2026-09-29 according to docs/assignment2-description.md. Research, an early mockup, a recorded demonstration, a Part 1 report, an assessed commit, and AI evidence are specified there. Confirm the actual submission requirements against the course source before final submission; the existing sketch was made during implementation, as its notes disclose.
+- README.md now describes both search modes; docs/verification.md still focuses on the older name-search and booking workflow. Do not treat historical live ZIP counts in report.md as fixed expectations; provider coverage varies.
+- Recommended next action: inspect the uncommitted frontend diffs and the newly present media/mockup changes before deciding what belongs in a checkpoint. Perform any remaining requested UI edits, then verify the Part 1 interaction and prepare the intended commit/report/demo. Read AGENTS.md, README.md, this handoff, docs/assignment2-description.md, docs/assignment2-part1-notes.md, and docs/verification.md first.
 
-Verified facts: current architecture, schema version, committed demo video,
-documented automated results, active local ports, branch names, pushed commit
-history through `68ce6b0`, and the current local screenshot changes.
-
-Still requiring user confirmation or fresh verification: whether the local
-screenshot edits are intentional, whether the manual VS Code review is
-complete, which exact commit should be named in the uploaded report, and
-whether the external course submission has been completed.
+Verified in this refresh: local branch/HEAD/status, named source files and diffs, the current automated test/build/read-only lint results above, and listening ports. Verified in the preceding documentation review: ignore rules. Still to verify: actual remote freshness, service command lines and current HTTP health, a fresh live Geoapify search and complete browser walkthrough, contents and intended treatment of the new media/mockup artifacts, and the Part 1 submission evidence.

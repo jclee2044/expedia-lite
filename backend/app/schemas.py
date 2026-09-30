@@ -6,6 +6,43 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class HealthResponse(BaseModel):
+    status: Literal["ok"]
+    geoapify_api_key: Literal[
+        "key is configured",
+        "key is not configured",
+    ]
+
+
+class PostcodeLocationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    postcode: str
+    country_code: str
+    latitude: float
+    longitude: float
+    locality: str | None
+
+
+class ExternalHotelResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    place_id: str
+    name: str | None
+    address: str | None
+    latitude: float
+    longitude: float
+
+
+class NearbyHotelSearchResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    center: PostcodeLocationResponse
+    radius_meters: int
+    result_limit: int
+    hotels: list[ExternalHotelResponse]
+
+
 class HotelStayResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

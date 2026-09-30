@@ -1,82 +1,107 @@
-# Expedia Lite — Part 2
+# Expedia Lite — Assignment 2, Part 1
 
-## Repository and commit
+## Project access
 
-Repository: [https://github.com/jclee2044/expedia-lite](https://github.com/jclee2044/expedia-lite)
+Repository: [Expedia Lite](https://github.com/jclee2044/expedia-lite). Assessed Part 1 implementation checkpoint: [`929cb77`](https://github.com/jclee2044/expedia-lite/commit/929cb777ed0d8ded1e18a4d91f9b31bfcc5387a8) on `zip-search`. This commit contains the ZIP search, interface changes, documentation, and demo files; the report's checkpoint line was updated afterward.
 
-- Preserved Part 1 checkpoint: `a67b2e1fe9c699ad0dddfd0441ac429520b4616f`
-- Final Part 2 checkpoint: record the submitted commit ID after the final commit and push.
+Use Python 3.12 and a supported Node.js version. From the project root:
 
-## Implementation
+```bash
+python3.12 -m venv backend/.venv
+backend/.venv/bin/python -m pip install -r backend/requirements.txt
+cd frontend
+npm ci
+```
 
-In Part 1, the bare-bones Vue search interface and CSV-backed hotel/booking data were established. Part 2 builds on top of that search experience with a more "Expedia-esque" UI, account creation and login, simulated booking, cancellation, and guarded permanent deletion.
+Start the backend from the project root with `backend/.venv/bin/python -m uvicorn backend.app.main:app --reload`. In another terminal, run `npm run dev` from `frontend/`, then open `http://127.0.0.1:5173`. See the [README](README.md) for configuration details.
 
-Below are the specific changes since Part 1:
-- Built out the full user interface
-- Added complete frontend booking CRUD
-- Moved app data to SQLite (one-time CSV seeding)
-- Refactored the codebase to match MVC
-- Added functionality of account creation and login/logout
-- Added personalized search pricing (price gauging)
+## Research notes
 
+I looked at [Trivago](https://www.trivago.com/), [Expedia](https://www.expedia.com/Hotels), and [Booking.com](https://www.booking.com/). My [Trivago screenshot](docs/mockups/trivago.png) shows the idea I liked most: hotel cards on the left and a map on the right. I also liked seeing a picture next to each hotel name.
 
-The application was designed to follow the Model–View–Controller (MVC) design pattern. The Vue frontend is the View and calls documented FastAPI endpoints. FastAPI routes conduct HTTP validation and delegate behavior to the Controllers. Controllers, in turn, use Python and SQLite to do search, pricing, account, booking, and database rules.
+The Trivago screen felt clunky and overcrowded to me. Not all the hotel names appeared on screen, and the prices on the map jumped up and down, which was distracting and confusing. I kept the cards-left/map-right idea but made the cards simpler and easier to read.
 
-Booking prices are calculated by the backend from the signed-in user's search history. A booking snapshots the effective nightly rate shown for that search, so its confirmation and history total remain consistent even if later searches change the current offer.
+I also consulted the [Geoapify geocoding](https://apidocs.geoapify.com/docs/geocoding/) and [Places](https://apidocs.geoapify.com/docs/places/) documentation and the [Leaflet quick start](https://leafletjs.com/examples/quick-start/) while building the ZIP search and map.
 
-## Verification
+## Early mockup
 
-### Search and effective pricing
+![Early left-list/right-map mockup](docs/mockups/a2-mockups.png)
 
-When the user searches for "Valley Trail" four times while signed in:
-- Expected: Searches one through three show $100 per night; the fourth shows the adjusted price of $120 per night and $240 for two nights.
-- Observed: Searches 1, 2, and each showed $100 for one night and $200 for two; the fourth search showed $120 per night and $240 total.
+The [mockup](docs/mockups/a2-mockups.png) shows hotel cards on the left and pins on the right, with a name callout. The final interface adds ZIP search and linked selection. I tried an indigo color, did not like it, then liked the [green preview](docs/mockups/green-brand-preview.jpg) and used green instead.
 
-![Fourth Valley Trail search showing the effective price](docs/test-screenshots/part2-search-results.png)
+I also tried putting a picture on the left side of each card, like the Trivago example. Most Geoapify results did not have an image, so I dropped that idea rather than showing an ugly placeholder icon. **TODO:** confirm when `docs/mockups/a2-mockups.png` was prepared.
 
-### Create and read a booking
+## Screen-recorded demo video
 
-When the user books the displayed Valley Trail stay and opens My trips:
-- Expected: The confirmation and history show all the confirmation information, including the ID, "confirmed" status, hotel, stay, dates, and the $240 total.
-- Observed: Booking B015 was created as confirmed at $120 per night and $240 total, then was shown in the history with details that all matched.
+[Expedia Lite A2.1 Demo.mov](<Expedia Lite A2.1 Demo.mov>)
 
-![Booking confirmation preserving the searched price](docs/test-screenshots/part2-booking-confirmation.png)
+## Verification record
 
-### Update and delete a booking
+The automated checks passed: **36 backend tests** and **16 frontend tests**. The manual checks are below.
 
-The user cancels B015, then permanently deletes it.
-- Expected: Cancellation keeps the record in view, just showing as cancelled. A confirmation message is displayed before permanent deletion, then that record is destroyed.
-- Observed: B015 remained in the list after cancellation. After it was deleted, the page no longer showed B015.
+Test 1: When the user searches ZIP `16802`:
 
-![Cancelled booking retained in history](docs/test-screenshots/part2-booking-cancelled.png)
+- Expected: The app shows hotel results near State College, PA, in the list and on the map.
+- Actual: The app resolved `16802` to State College and displayed 21 places, including the Nittany Lion Inn and the Penn Stater, with matching map markers.
 
-![History after permanent deletion of the test booking](docs/test-screenshots/part2-booking-deleted.png)
+Test 2: When the user searches ZIP `17042`:
 
-### Empty and error states
+- Expected: The app shows hotel results in the Lebanon, PA, area.
+- Actual: The app resolved `17042` to North Cornwall Township and displayed two places: Days Inn - Lebanon / Hershey in Lebanon and Fairfield Inn & Suites in North Cornwall Township.
 
-- Action: Search for nonexistent.
-- Expected: No cards appear and the page gives a clear no-results message.
-- Observed: The page reported zero matching hotels and suggested a different search.
+Test 3: When the user clicks the hotel card for the Nittany Lion Inn:
 
-![No-results state](docs/test-screenshots/part2-no-results.png)
+- Expected: Its associated map marker is highlighted.
+- Actual: The card and its matching marker both showed the selected state after the card was clicked.
 
-Automated verification also passed on 2026-09-21, see below:
+Test 4: When the user clicks the map marker for the Penn Stater:
 
-- 85 backend tests
-- 10 frontend API-contract tests
-- frontend lint
-- frontend production build (20 transformed modules)
+- Expected: The associated hotel card is selected.
+- Actual: Activating the marker with the keyboard selected and scrolled to the Penn Stater card.
 
-## Project context and next steps
+Test 5: When the user submits ZIP `000000`:
 
-The assignment requirements were all satisfied and the project is ready to be submitted.
+- Expected: The app shows an error about the ZIP code instead of running a hotel search.
+- Actual: The app showed “Enter exactly five digits for a U.S. ZIP code.” No hotel results appeared.
 
-The application includes the improved interface, SQLite persistence, complete booking CRUD functionality, unique record IDs, and the required MVC organization.
+Test 6: When the user enters letters such as `abcde` for the ZIP code and submits the form:
 
-The optional account authentication and personalized pricing features are also complete.
+- Expected: The interface does not accept letters as a valid ZIP code.
+- Actual: The form rejects letters on submission with “Enter exactly five digits for a U.S. ZIP code.”
 
-Automated tests, frontend linting, the production build, and browser testing all passed successfully.
+## AI disclosure and evidence log
 
-The README, design documentation, verification guide, screenshots, selected prompts, and current handoff have also been updated to reflect the finished application.
+I used **Codex with GPT-6 Sol** for the implementation, visual previews, and verification. These prompt excerpts show how I directed the work.
 
-Demonstration video: [Expedia Lite Demo](<Expedia Lite Demo.mp4>)
+The setup prompt led to the [Geoapify controller](backend/controllers/places.py) and [ZIP request code](frontend/src/api/locations.js):
+
+```vbnet
+identify key dependencies and initial setup for PART 1 of assignment 2. Must be able to look up by zip code and find hotels in that area.
+develop a step by step plan to get the dependencies setup, following best swe principles and finding the minimal solution.
+```
+
+The selection prompt shaped the [list](frontend/src/components/NearbyHotelsPanel.vue) and [map](frontend/src/components/NearbyHotelsMap.vue):
+
+```vbnet
+currently clicking a hotel on the left side selects the pin on the right. next step, we need the opposite to be true as well. clicking the pin on the right should select the hotel on the left
+```
+
+The hover prompt added the name callout in the [map component](frontend/src/components/NearbyHotelsMap.vue):
+
+```css
+on the map, when i hover over a pin, it should have a callout directly above the pin showing the name of the hotel
+```
+
+I annotated the left side of the card and asked for pictures, then revised that approach when most results had no image. The [cards](frontend/src/components/NearbyHotelsPanel.vue) no longer depend on hotel pictures:
+
+```sql
+add the pull for the hotel image and display it on the left side of the card, with text on the right, for each card.
+implement only the backend first. once thats been validated then add the frontend
+```
+
+This indigo prompt changed [main.css](frontend/src/assets/main.css). I disliked the result, previewed green, and chose green instead:
+
+```css
+this is now the brand color of the app. change the main headings (e.g., "Choose a hotel stay", "Hotels near ZIP #####", etc), icon, pill background colors
+background of the hotel icons should be a lighter version of this
+```

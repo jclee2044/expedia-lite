@@ -9,6 +9,7 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from backend.app.routes import router
+from backend.config import geoapify_key_is_configured
 from backend.controllers.database import (
     DEFAULT_DATABASE_PATH,
     DEFAULT_DATA_DIRECTORY,
@@ -30,6 +31,7 @@ def create_app(
 
     application = FastAPI(title="Expedia Lite API", lifespan=lifespan)
     application.state.database_path = database_path
+    application.state.geoapify_key_configured = geoapify_key_is_configured()
     application.state.sessions = SessionStore()
     application.include_router(router)
     return application

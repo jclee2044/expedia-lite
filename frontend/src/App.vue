@@ -5,13 +5,17 @@ import { createAccount, getCurrentAccount, login, logout } from './api/accounts.
 import { createBooking, deleteBooking, updateBookingStatus } from './api/bookings.js'
 import { searchHotels } from './api/hotels.js'
 import { ApiError } from './api/http.js'
+import { getNearbyHotels, isValidUsZipCode } from './api/locations.js'
 import { getAccountBookings } from './api/users.js'
 import AccountPanel from './components/AccountPanel.vue'
 import BookingConfirmation from './components/BookingConfirmation.vue'
 import BookingHistory from './components/BookingHistory.vue'
+import NearbyHotelsPanel from './components/NearbyHotelsPanel.vue'
 import StayCard from './components/StayCard.vue'
+import ZipLookupPanel from './components/ZipLookupPanel.vue'
 
 const activeView = ref('search')
+const searchMode = ref('name')
 const hotelName = ref('')
 const submittedQuery = ref('')
 const hotelCount = ref(0)
@@ -32,6 +36,13 @@ const historyError = ref('')
 const mutationBookingId = ref('')
 const mutationError = ref('')
 const confirmationRegion = ref(null)
+const zipLocation = ref(null)
+const isZipLoading = ref(false)
+const zipError = ref('')
+const nearbyHotels = ref([])
+const zipHasSearched = ref(false)
+const selectedPlaceId = ref(null)
+const nearbyResultLimit = ref(50)
 
 const resultSummary = computed(() => {
   const hotelNoun = hotelCount.value === 1 ? 'hotel' : 'hotels'
@@ -251,6 +262,36 @@ async function submitSearch() {
   }
 }
 
+function clearZipResult() {
+  zipLocation.value = null
+  zipError.value = ''
+  nearbyHotels.value = []
+  zipHasSearched.value = false
+  selectedPlaceId.value = null
+}
+
+async function lookupZip(postcode) {
+  clearZipResult()
+  if (!isValidUsZipCode(postcode)) {
+    zipError.value = 'Enter exactly five digits for a U.S. ZIP code.'
+    return
+  }
+
+  isZipLoading.value = true
+
+  try {
+    const search = await getNearbyHotels(postcode)
+    zipLocation.value = search.center
+    nearbyHotels.value = search.hotels
+    nearbyResultLimit.value = search.result_limit
+    zipHasSearched.value = true
+  } catch (error) {
+    zipError.value = error instanceof Error ? error.message : 'ZIP lookup failed.'
+  } finally {
+    isZipLoading.value = false
+  }
+}
+
 onMounted(restoreSession)
 </script>
 
@@ -263,7 +304,7 @@ onMounted(restoreSession)
       </a>
       <div class="header-actions">
         <span v-if="currentAccount" class="signed-in-name">{{ currentAccount.username }}</span>
-        <nav class="view-nav" aria-label="Primary navigation">
+        <nav class="view-nav" :data-active="activeView" aria-label="Primary navigation">
           <button
             type="button"
             :aria-current="activeView === 'search' ? 'page' : undefined"
@@ -308,12 +349,26 @@ onMounted(restoreSession)
           <p class="hero-copy">
             {{
               activeView === 'search'
-                ? 'Search fictional properties and compare their available dates and prices.'
+                ? 'Your next getaway starts with the right place.'
                 : `Booking history for ${currentAccount?.username} is loaded from SQLite.`
             }}
           </p>
 
-          <form v-if="activeView === 'search'" class="search-form" role="search" @submit.prevent="submitSearch">
+          <div v-if="activeView === 'search'" class="search-mode-switch" role="group" aria-label="Search by">
+            <span>Search by:</span>
+            <div class="search-mode-options" :data-active="searchMode">
+              <button type="button" :aria-pressed="searchMode === 'name'" @click="searchMode = 'name'">Name</button>
+              <button type="button" :aria-pressed="searchMode === 'zip'" @click="searchMode = 'zip'">ZIP Code</button>
+            </div>
+          </div>
+
+          <form v-if="activeView === 'search' && searchMode === 'name'" class="search-form" role="search" aria-labelledby="name-search-title" @submit.prevent="submitSearch">
+            <div class="search-panel-heading">
+              <div>
+                <h2 id="name-search-title">Find stays by hotel name</h2>
+                <p>Search available sample stays by a full or partial hotel name.</p>
+              </div>
+            </div>
             <label for="hotel-name">Hotel name</label>
             <div class="search-control">
               <span class="search-icon" aria-hidden="true"></span>
@@ -331,19 +386,59 @@ onMounted(restoreSession)
               </button>
             </div>
             <p id="search-help" class="field-help">
-              Search by partial hotel name.
-              {{ currentAccount ? ` Signed in as ${currentAccount.username}.` : ' Login to book a stay.' }}
+              {{ currentAccount ? `Signed in as ${currentAccount.username}.` : 'Login to book a stay.' }}
             </p>
           </form>
 
-          <p v-if="activeView === 'search' && errorMessage" id="search-error" class="alert-message" role="alert">
+          <p v-if="activeView === 'search' && searchMode === 'name' && errorMessage" id="search-error" class="alert-message" role="alert">
             <span aria-hidden="true">!</span>
             {{ errorMessage }}
           </p>
         </section>
 
-        <section
+        <ZipLookupPanel
           v-if="activeView === 'search'"
+          v-show="searchMode === 'zip'"
+          :is-loading="isZipLoading"
+          :location="zipLocation"
+          :error-message="zipError"
+          @lookup="lookupZip"
+          @change="clearZipResult"
+        />
+
+        <NearbyHotelsPanel
+          v-if="activeView === 'search' && searchMode === 'zip' && zipHasSearched"
+          :center="zipLocation"
+          :hotels="nearbyHotels"
+          :result-limit="nearbyResultLimit"
+          :selected-place-id="selectedPlaceId"
+          @select="selectedPlaceId = $event"
+        />
+
+        <section
+          v-else-if="activeView === 'search' && searchMode === 'zip' && !isZipLoading"
+          class="results-section"
+          aria-labelledby="zip-results-title"
+        >
+          <div class="results-heading">
+            <div>
+              <p class="section-kicker">Nearby hotels</p>
+              <h2 id="zip-results-title">Start with a ZIP code</h2>
+            </div>
+          </div>
+          <div class="state-card welcome-state">
+            <div class="welcome-content">
+              <span class="state-icon" aria-hidden="true">⌖</span>
+              <div>
+                <h3>Your map search starts here</h3>
+                <p>Enter a U.S. ZIP code above to see nearby hotels on a map.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          v-if="activeView === 'search' && searchMode === 'name'"
           class="results-section"
           aria-labelledby="results-title"
           aria-live="polite"
@@ -400,16 +495,18 @@ onMounted(restoreSession)
           </div>
 
           <div v-else class="state-card welcome-state">
-            <span class="state-icon" aria-hidden="true">⌂</span>
-            <div>
-              <h3>Your stay search starts here</h3>
-              <p>Use a fictional hotel name above to see matching dates and prices.</p>
+            <div class="welcome-content">
+              <span class="state-icon" aria-hidden="true">⌂</span>
+              <div>
+                <h3>Your stay search starts here</h3>
+                <p>Use a fictional hotel name above to see matching dates and prices.</p>
+              </div>
             </div>
           </div>
         </section>
 
         <BookingHistory
-          v-else
+          v-else-if="activeView === 'history'"
           :history="history"
           :is-loading="isHistoryLoading"
           :error-message="historyError"
@@ -422,8 +519,20 @@ onMounted(restoreSession)
       </template>
     </main>
 
-    <footer>
-      <p>Expedia Lite uses synthetic classroom travel data.</p>
+    <footer class="site-footer">
+      <div class="footer-main">
+        <div class="footer-brand">
+          <span class="brand-mark" aria-hidden="true">✦</span>
+          <div>
+            <strong>Expedia Lite</strong>
+            <p>Find a place that feels like the start of something good.</p>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 Expedia Lite</span>
+        <span>Created by Jacob Lee</span>
+      </div>
     </footer>
   </div>
 </template>

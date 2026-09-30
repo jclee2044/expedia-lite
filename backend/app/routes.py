@@ -15,8 +15,11 @@ from backend.app.schemas import (
     BookingDetailResponse,
     BookingHistoryResponse,
     BookingStatusUpdateRequest,
+    HealthResponse,
     HotelSearchResponse,
     LoginRequest,
+    NearbyHotelSearchResponse,
+    PostcodeLocationResponse,
 )
 from backend.controllers.accounts import authenticate, create_account, get_account
 from backend.controllers.bookings import (
@@ -31,9 +34,14 @@ from backend.controllers.errors import (
     AuthenticationError,
     BookingValidationError,
     DuplicateUsernameError,
+    GeoapifyConfigurationError,
+    GeoapifyRequestError,
+    PostcodeNotFoundError,
     RecordNotFoundError,
     SearchValidationError,
 )
+from backend.controllers.geocoding import lookup_us_postcode
+from backend.controllers.places import search_nearby_hotels
 from backend.controllers.search import search_hotel_stays
 from backend.controllers.users import list_user_bookings
 
@@ -52,6 +60,68 @@ def get_database(request: Request) -> Iterator[sqlite3.Connection]:
 
 
 DatabaseConnection = Annotated[sqlite3.Connection, Depends(get_database)]
+
+
+@router.get("/api/health", response_model=HealthResponse)
+def get_health(request: Request) -> HealthResponse:
+    """Report service health without exposing configuration values."""
+    key_status = (
+        "key is configured"
+        if request.app.state.geoapify_key_configured
+        else "key is not configured"
+    )
+    return HealthResponse(status="ok", geoapify_api_key=key_status)
+
+
+@router.get("/api/demo/zip-location", response_model=PostcodeLocationResponse)
+def get_demo_zip_location() -> PostcodeLocationResponse:
+    """Resolve the fixed classroom demonstration ZIP through the controller."""
+    return _resolve_zip_location("16802")
+
+
+@router.get("/api/zip-location", response_model=PostcodeLocationResponse)
+def get_zip_location(
+    postcode: str = Query(pattern=r"^[0-9]{5}$", description="Five-digit U.S. ZIP code"),
+) -> PostcodeLocationResponse:
+    """Resolve a validated U.S. ZIP supplied by the caller."""
+    return _resolve_zip_location(postcode)
+
+
+@router.get("/api/hotels/nearby", response_model=NearbyHotelSearchResponse)
+def get_nearby_hotels(
+    postcode: str = Query(pattern=r"^[0-9]{5}$", description="Five-digit U.S. ZIP code"),
+) -> NearbyHotelSearchResponse:
+    """Find Geoapify hotels within 5 km of the resolved U.S. ZIP point."""
+    try:
+        search = search_nearby_hotels(postcode)
+    except GeoapifyConfigurationError as error:
+        raise HTTPException(status_code=503, detail="Hotel location service is not configured.") from error
+    except PostcodeNotFoundError as error:
+        raise HTTPException(status_code=404, detail=f"ZIP code {postcode} could not be resolved.") from error
+    except GeoapifyRequestError as error:
+        raise HTTPException(status_code=502, detail="Nearby hotel provider is unavailable.") from error
+    return NearbyHotelSearchResponse.model_validate(search)
+
+
+def _resolve_zip_location(postcode: str) -> PostcodeLocationResponse:
+    try:
+        location = lookup_us_postcode(postcode)
+    except GeoapifyConfigurationError as error:
+        raise HTTPException(
+            status_code=503,
+            detail="ZIP location service is not configured.",
+        ) from error
+    except PostcodeNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=f"ZIP code {postcode} could not be resolved.",
+        ) from error
+    except GeoapifyRequestError as error:
+        raise HTTPException(
+            status_code=502,
+            detail="ZIP location provider is unavailable.",
+        ) from error
+    return PostcodeLocationResponse.model_validate(location)
 
 
 def require_authenticated_user(request: Request) -> str:

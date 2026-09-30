@@ -10,6 +10,7 @@ import {
 } from '../src/api/bookings.js'
 import { searchHotels } from '../src/api/hotels.js'
 import { ApiError } from '../src/api/http.js'
+import { getNearbyHotels, getZipLocation, isValidUsZipCode } from '../src/api/locations.js'
 import { getAccountBookings } from '../src/api/users.js'
 
 async function withFetch(stub, action) {
@@ -50,6 +51,46 @@ test('searchHotels encodes the query and returns the response body', async () =>
   }, () => searchHotels('Harbor & Bay'))
 
   assert.deepEqual(actual, expected)
+})
+
+test('getZipLocation preserves leading zeroes in the backend proxy request', async () => {
+  const expected = {
+    postcode: '00501',
+    country_code: 'us',
+    latitude: 40.8154,
+    longitude: -73.0451,
+    locality: 'Holtsville',
+  }
+
+  const actual = await withFetch(async (url, options) => {
+    assert.equal(url, '/api/zip-location?postcode=00501')
+    assert.deepEqual(options, {})
+    return jsonResponse(expected)
+  }, () => getZipLocation('00501'))
+
+  assert.deepEqual(actual, expected)
+})
+
+test('getNearbyHotels requests the ZIP search through the backend proxy', async () => {
+  const expected = {
+    center: { postcode: '00501', latitude: 40.8154, longitude: -73.0451 },
+    radius_meters: 5000,
+    result_limit: 50,
+    hotels: [],
+  }
+  const actual = await withFetch(async (url, options) => {
+    assert.equal(url, '/api/hotels/nearby?postcode=00501')
+    assert.deepEqual(options, {})
+    return jsonResponse(expected)
+  }, () => getNearbyHotels('00501'))
+  assert.deepEqual(actual, expected)
+})
+
+test('ZIP validation accepts only five ASCII digits, including leading zeroes', () => {
+  assert.equal(isValidUsZipCode('02108'), true)
+  for (const postcode of ['', '1234', '123456', '12a45', '12 45', '１２３４５']) {
+    assert.equal(isValidUsZipCode(postcode), false)
+  }
 })
 
 test('getAccountBookings requests authenticated history', async () => {
