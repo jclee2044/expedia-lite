@@ -56,6 +56,10 @@ frontend/.vite/
 # Local removal notes
 *remove.md
 
+# Assignment reports are versioned
+!report.md
+!a1-report.md
+
 # Operating-system artifacts
 .DS_Store
 Thumbs.db

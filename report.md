@@ -2,7 +2,7 @@
 
 ## Project access
 
-Repository: [Expedia Lite](https://github.com/jclee2044/expedia-lite). Assessed Part 1 implementation checkpoint: [`929cb77`](https://github.com/jclee2044/expedia-lite/commit/929cb777ed0d8ded1e18a4d91f9b31bfcc5387a8) on `zip-search`. This commit contains the ZIP search, interface changes, documentation, and demo files; the report's checkpoint line was updated afterward.
+Repository: [Expedia Lite](https://github.com/jclee2044/expedia-lite). Most recent commit when this report was prepared: [`0ac0e2c`](https://github.com/jclee2044/expedia-lite/commit/0ac0e2c5e3791dae17bdddba230c3927cc597286) on `main`. It contains the merged Part 1 implementation, documentation, and demo; this report update follows that checkpoint. The [main branch](https://github.com/jclee2044/expedia-lite/tree/main) contains the latest submitted version.
 
 Use Python 3.12 and a supported Node.js version. From the project root:
 
@@ -27,9 +27,9 @@ I also consulted the [Geoapify geocoding](https://apidocs.geoapify.com/docs/geoc
 
 ![Early left-list/right-map mockup](docs/mockups/a2-mockups.png)
 
-The [mockup](docs/mockups/a2-mockups.png) shows hotel cards on the left and pins on the right, with a name callout. The final interface adds ZIP search and linked selection. I tried an indigo color, did not like it, then liked the [green preview](docs/mockups/green-brand-preview.jpg) and used green instead.
+The [mockup](docs/mockups/a2-mockups.png) was drawn before implementation. It shows hotel cards on the left and pins on the right, with a name callout. The final interface adds ZIP search and linked selection. I tried an indigo color, did not like it, then liked the [green preview](docs/mockups/green-brand-preview.jpg) and used green instead. A separate [layout sketch](docs/assignment2-part1-mockup.svg) was drawn during implementation.
 
-I also tried putting a picture on the left side of each card, like the Trivago example. Most Geoapify results did not have an image, so I dropped that idea rather than showing an ugly placeholder icon. **TODO:** confirm when `docs/mockups/a2-mockups.png` was prepared.
+I also tried putting a picture on the left side of each card, like the Trivago example. Most Geoapify results did not have an image, so I dropped that idea rather than showing an ugly placeholder icon.
 
 ## Screen-recorded demo video
 
@@ -37,7 +37,7 @@ I also tried putting a picture on the left side of each card, like the Trivago e
 
 ## Verification record
 
-The automated checks passed: **36 backend tests** and **16 frontend tests**. The manual checks are below.
+On September 29, 2026, the automated checks passed: **118 backend tests** and **16 frontend tests**. The live ZIP searches below were observed on September 29, 2026.
 
 Test 1: When the user searches ZIP `16802`:
 
