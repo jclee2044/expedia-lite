@@ -1,6 +1,7 @@
 <script setup>
 import { nextTick, ref, watch } from 'vue'
 import NearbyHotelsMap from './NearbyHotelsMap.vue'
+import { hotelAddressLines } from './hotelAddress.js'
 
 const props = defineProps({
   center: { type: Object, required: true },
@@ -32,7 +33,7 @@ watch(() => props.selectedPlaceId, async (placeId) => {
   <section class="nearby-section" aria-labelledby="nearby-title">
     <div class="results-heading">
       <div>
-        <p class="section-kicker">Live places from Geoapify</p>
+        <p class="section-kicker">Nearby hotels</p>
         <h2 id="nearby-title">Hotels near ZIP {{ center.postcode }}</h2>
       </div>
       <p class="result-count">{{ hotels.length }} {{ hotels.length === 1 ? 'place' : 'places' }} returned</p>
@@ -64,7 +65,9 @@ watch(() => props.selectedPlaceId, async (placeId) => {
             </span>
             <strong>{{ hotel.name || 'Name unavailable' }}</strong>
           </span>
-          <span class="nearby-card-address">{{ hotel.address || 'Address unavailable' }}</span>
+          <span class="nearby-card-address">
+            <span v-for="(line, index) in hotelAddressLines(hotel)" :key="index" class="nearby-card-address-line">{{ line }}</span>
+          </span>
         </button>
       </div>
       <NearbyHotelsMap

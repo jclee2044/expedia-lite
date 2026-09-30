@@ -14,9 +14,8 @@ defineEmits(['lookup', 'change'])
 
 <template>
   <section class="zip-demo-panel" aria-labelledby="zip-demo-title">
-    <div class="zip-demo-heading">
+    <div class="search-panel-heading">
       <div>
-        <p class="section-kicker">Location search</p>
         <h2 id="zip-demo-title">Find hotels near a U.S. ZIP code</h2>
         <p>Explore hotels within 5 km of the ZIP code's mapped point.</p>
       </div>
@@ -24,7 +23,8 @@ defineEmits(['lookup', 'change'])
 
     <form class="zip-form" novalidate @submit.prevent="$emit('lookup', postcode)">
       <label for="zip-postcode">ZIP code</label>
-      <div class="zip-form-controls">
+      <div class="search-control" :class="{ 'is-invalid': Boolean(errorMessage) }">
+        <span class="search-icon" aria-hidden="true"></span>
         <input
           id="zip-postcode"
           v-model="postcode"
@@ -38,7 +38,7 @@ defineEmits(['lookup', 'change'])
           @input="$emit('change')"
         />
         <button type="submit" :disabled="isLoading" :aria-busy="isLoading">
-          Find nearby hotels
+          Search
         </button>
       </div>
       <p id="zip-help" class="field-help">Five numeric digits are required.</p>

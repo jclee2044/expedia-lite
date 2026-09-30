@@ -62,14 +62,16 @@ function updateSelection() {
 
 onMounted(() => {
   map = L.map(mapElement.value).setView([props.center.latitude, props.center.longitude], 12)
+  map.attributionControl.setPrefix(false).setPosition('bottomright')
+  const brandColor = getComputedStyle(mapElement.value).getPropertyValue('--brand').trim()
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map)
   L.circle([props.center.latitude, props.center.longitude], {
     radius: 5000,
-    color: '#1668e3',
-    fillColor: '#1668e3',
+    color: brandColor,
+    fillColor: brandColor,
     fillOpacity: 0.06,
     interactive: false,
   }).addTo(map)

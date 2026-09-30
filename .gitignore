@@ -53,6 +53,9 @@ frontend/.vite/
 *.swo
 *~
 
+# Local removal notes
+*remove.md
+
 # Operating-system artifacts
 .DS_Store
 Thumbs.db
