@@ -2,7 +2,7 @@
 
 ## Project access
 
-Repository: [Expedia Lite](https://github.com/jclee2044/expedia-lite). Current checkpoint: [`7dc9f5b`](https://github.com/jclee2044/expedia-lite/commit/7dc9f5b7c0161742145987397ac56765843b9d88) on `zip-search`. **TODO:** replace it with the final assessed commit; the current working tree has uncommitted Part 1 changes.
+Repository: [Expedia Lite](https://github.com/jclee2044/expedia-lite). Assessed Part 1 implementation checkpoint: [`929cb77`](https://github.com/jclee2044/expedia-lite/commit/929cb777ed0d8ded1e18a4d91f9b31bfcc5387a8) on `zip-search`. This commit contains the ZIP search, interface changes, documentation, and demo files; the report's checkpoint line was updated afterward.
 
 Use Python 3.12 and a supported Node.js version. From the project root:
 
