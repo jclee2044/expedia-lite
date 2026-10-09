@@ -1,59 +1,162 @@
 # Expedia Lite current handoff
 
-Refreshed after the Assignment 2 Part 1 merge on 2026-09-29. Recheck this record against Git and the named files before continuing in another thread. The merge is pushed, but the course submission has not been verified.
+Refreshed October 8, 2026 for the remaining Part 2 report review and video
+recording. Reconstruct this snapshot using `handoffs/create-handoff.md`
+and `AGENTS.md` before changing anything. The user authorized the readiness
+repairs and implementation checkpoint; a future continuation must still
+verify current Git/files/services before editing.
 
 ## Objective and decisions
 
-Assignment 2 Part 1 is implemented and merged into `main`: the application searches live Geoapify hotel places by an exact five-digit U.S. ZIP code and synchronizes them in a Vue list and Leaflet map. The original fictional hotel-name search and booking flow remain available as a separate search mode. Geoapify places are not presented as bookable inventory and have no invented prices, ratings, or availability.
+The revised Assignment 2.2 endpoint and local-storage foundation are
+implemented and verified on `rag_integration`. The October 8 critical
+review found two actual grounding defects, repaired them, and tested the
+complete workflow. The student will record the Part 2 demo. Remaining:
+record it, test instructor access, add the link to `report.md`, review the
+report and submit it. Do not invent a video link or claim submission.
 
-The merged UI keeps Name and ZIP Code search in separate modes, uses the same hero sentence and search-control layout, aligns their empty states, applies a green brand palette, and uses a shared responsive heading size across Search, My trips, and Account. The ZIP search button says “Search.” The footer contains Expedia Lite, copyright 2026, and Jacob Lee's attribution. Nearby hotel cards split provider display addresses into street lines and a city/state/ZIP line, omitting a repeated hotel name and U.S. country suffix. The map circle uses the current brand color and the attribution is placed at the bottom right.
+Use Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`) for both runtime model
+requests. Today's Codex review/repair model is **GPT-6.1 Sol**, confirmed by
+the student. Earlier Part 2 records say GPT-6; their exact selector name is
+not independently established. Preserve the default database, synthetic
+course data, Part 1 behavior and the student's mockup reorganization.
+All keys remain in ignored root `.env`; no dependency change was made.
 
-Assignment 2 Part 2, the persistent shortlist, is described in docs/assignment2-description.md but has not been implemented.
+## Architecture and files
 
-## Architecture and file map
+Vue View → FastAPI routes → framework-free Controllers → Models/SQLite.
 
-Vue View -> FastAPI routes -> framework-free Controllers -> Models/SQLite.
+- `backend/models/schema.py`: schema 7, additive migrations from versions
+  4–6; saved hotels, ZIPs, nights and durable chat messages/stages.
+- `backend/controllers/saved_hotels.py`: transactional save/duplicate/remove.
+  `frontend/src/api/zipSearch.js`: saved-local-first lookup.
+- `backend/controllers/retrieval.py`: bounded parameterized SELECT, exact
+  trusted binds, separate read-only connection, query_only, authorizer and
+  execution budget; independently verifies nightly rows/totals and counts
+  saved hotels for the ZIP.
+- `backend/controllers/gemini.py`: backend-only provider calls. Second
+  request uses JSON schema and requires normal completion.
+- `backend/controllers/grounded_answer.py`: validates selected IDs/reason
+  and renders factual names, dated cents/rooms and totals from checked rows.
+- `rag_chat.py`, `chat_context.py`, `chat_history.py`: two-call flow,
+  bounded context, trace and persistence. Model output is buffered until
+  checked; no unchecked partial answer is sent to Vue.
+- `prompts/hotel-assistant.md`: version 5, relevant schema/query rules,
+  structured second answer. Result trace stores `second_model_answer` and
+  `answer_validation` alongside checked retrieval.
+- `frontend/src/components/ChatPopup.vue`: popup, keyboard controls,
+  loading/Edit/Retry states and restored history.
+- `backend/prepare_rag_demo.py` and `docs/part2-rag-fixture.json`: new
+  synthetic databases only, refuses overwrite.
+- `backend/inspect_rag_demo.py`: read-only trace CLI for recording.
+- `backend/tests/browser_scenarios.py`: explicit isolated mock providers;
+  normal application does not use these mocks.
+- `docs/assignment2-part2-stage6.md`, `stage6-trace.txt`,
+  `stage6-commands.txt`: audit, exact saved trace and shell command log.
+  `docs/assignment2-part2-demo.md`: recording sequence.
+  `report.md`: updated submission draft, assessed commit present, video TODO.
+  `docs/rag-context.md`: current version 5 plus historical October 6 traces.
 
-- frontend/src/App.vue owns view/search state, including the Name/ZIP switch and selected Geoapify place ID. frontend/src/assets/main.css owns layout.
-- frontend/src/components/ZipLookupPanel.vue renders ZIP input and feedback. NearbyHotelsPanel.vue renders the places list, using hotelAddress.js for display formatting; NearbyHotelsMap.vue renders the Leaflet map and markers. frontend/src/api/locations.js makes proxied API requests, so the provider key does not enter the Vue bundle.
-- backend/app/routes.py exposes the ZIP and nearby-hotel endpoints. backend/controllers/geocoding.py and the Places controller handle provider requests; backend/models/ contains framework-free data contracts.
-- The original account, booking, and fictional stay flows use SQLite. CSV files in data/ seed the ignored runtime database once.
-- README.md documents setup, run commands, both search modes, and API behavior. Assignment 2 scope is in docs/assignment2-description.md; research decisions and the implementation-time sketch are in docs/assignment2-part1-notes.md and docs/assignment2-part1-mockup.svg. docs/verification.md mainly describes the older name-search/booking workflow and historical results. report.md is the Assignment 2 Part 1 submission draft and links the committed demo; a1-report.md preserves the earlier assignment report.
+## Git evidence and checkpoint
 
-## Git state
+Root: `/Users/jlee/Desktop/psu4/ist402/a1_expedia_lite`.
+Branch: `rag_integration`, tracking `origin/rag_integration`.
+Verified application HEAD: **`23b9dc21f7008a47538a3835cb09ea031e8c2746`**
+(`Implement checked saved-hotel RAG chat and verify Part 2 workflow`).
+This checkpoint includes 88 paths, preserving the pre-existing Part 2 source,
+tests, evidence and moved mockups. The remote branch matched this SHA.
+Anonymous GitHub API access returned 200 and `private=false`.
 
-- Root: /Users/jlee/Desktop/psu4/ist402/a1_expedia_lite
-- Branch: `main`. Before this handoff-only refresh, HEAD and `origin/main` matched at merge commit `18f5d5d93d0c4c8b60d67e7c95c8b2939450c9fc` (Merge zip-search into main). This handoff refresh will be committed on top, so verify the latest HEAD when resuming.
-- The merged feature tip is `6a91446` (report checkpoint update), following implementation checkpoint `929cb777ed0d8ded1e18a4d91f9b31bfcc5387a8` and earlier ZIP search commits `7dc9f5b`, `8a2cd73`, and `8fdbb19`. The `zip-search` branch remains local with no configured upstream; `main` tracks `origin/main`.
-- `git fetch origin main` confirmed the remote baseline before merging. `git push origin main` advanced the remote from `ddb02a0` to `18f5d5d`. The working tree was clean immediately after that push; only this handoff is being edited afterward. The 80.08 MB demo video pushed successfully with GitHub's advisory warning about its recommended 50 MB limit.
-- .env, backend/.venv, frontend/node_modules, and frontend/dist are ignored by Git. No credentials or environment values were inspected.
+This handoff/report/command log form a subsequent documentation-only commit.
+The SHA above identifies tested application source, not the self-referential
+commit containing this file. Before this documentation commit, only
+`report.md`, `handoffs/current.md` and the new command log were dirty.
+Use `git log -2 --oneline`, `git status --short`, and
+`git diff 23b9dc2 HEAD -- backend frontend prompts data`
+to verify that later documentation did not alter tested code. Confirm the
+final remote SHA with `git ls-remote --heads origin rag_integration`.
 
-## Completed and incomplete work
+Local `main`, `assignment2_part2_in_class` and `origin/main` remain at
+`d8edae8`; they do not contain Part 2. No merge or PR was requested.
+`.env`, databases, venv, node_modules and dist are ignored and unstaged.
+Staged credential-pattern/path checks and whitespace checks passed after
+removing two extra final blank lines in documents.
 
-- Merged Part 1: exact U.S. ZIP resolution, Geoapify hotel places within 5 km, a 50-result provider cap, list/map selection in both directions, keyboard-selectable places, map pin labels, and OpenStreetMap attribution.
-- The merged UI includes the Name/ZIP mode switch, matching search controls and empty states, green branding, consistent headings and footer, brand-colored map radius, and formatted hotel-card addresses. The earlier Assignment 1 report/video are preserved under `a1-report.md` and `Expedia Lite A1 Demo.mp4`.
-- report.md records research, mockup choices, live-search observations, AI use, and the assessed implementation checkpoint. It links `Expedia Lite A2.1 Demo.mov`. Its remaining TODO is to confirm the mockup's creation timing. The video contents and the report's manual observations were not independently verified during this merge task.
-- The persistent shortlist required for Assignment 2 Part 2 remains future work. Do not infer live room availability from Geoapify places.
+## Completed work and observed checks
 
-## Verification observed for this handoff
+Two review defects were reproduced: free prose misplaced a nightly date,
+and filtered-empty candidates were mistaken for no saved hotels. Version 5
+repairs both through validated selection/database rendering and independent
+saved counting.
 
-- Before the merge, `backend/.venv/bin/python -m pytest backend/tests`: 118 passed, 2 dependency deprecation warnings.
-- From `frontend/`, `npm test`: 16 passed, including three address-formatting cases.
-- From `frontend/`, `./node_modules/.bin/oxlint .` and `./node_modules/.bin/eslint .`: both passed without output. These read-only commands avoid the `--fix` options in `npm run lint`.
-- From `frontend/`, `npm run build`: passed; Vite transformed 27 modules.
-- `git diff --cached --check` passed before the feature commit. An earlier UI-work turn reported `npm run lint` passing; the read-only lint commands above were rerun before merging.
-- git check-ignore -v .env backend/.venv frontend/node_modules frontend/dist: all four paths ignored.
+Commands actually run from root:
 
-Browser checks during UI work showed the Name/ZIP switch, matching input and empty-state layouts, a one-line Search title at a 753 px viewport, and the Account title at the same computed font size. A live ZIP 16802 result was visible while verifying address display: the Scholar Hotel State College card showed “205 East Beaver Avenue” and “State College, PA 16801” on separate lines without the country; a provider address with an extra locality displayed three lines. This was not a complete integrated walkthrough. The My trips title shares the Search CSS rule; its signed-in view was not opened here. Historical live ZIP counts in report.md are not fixed expectations.
+```bash
+backend/.venv/bin/python -m pytest backend/tests/test_gemini.py backend/tests/test_grounded_answer.py backend/tests/test_retrieval.py backend/tests/test_rag_chat.py -q
+backend/.venv/bin/python -m pytest backend/tests -q
+git diff --check
+backend/.venv/bin/python -m backend.inspect_rag_demo backend/db/part2-oct8-audit.sqlite3 --turn-id f2afaf26-5a1e-4a1c-870e-252b37e6b39c
+```
 
-## Active services and limits of inspection
+Focused suite: **40 passed**. Full suite: **164 passed**, including final
+repeat after singular/plural wording; two existing dependency deprecation
+warnings. From `frontend/`, `npm test`: **26 passed**;
+`npm exec -- oxlint .`, `npm exec -- eslint .`, `npm run build`: passed.
+No code-test correction loop or dependency change was needed.
 
-At this refresh, `lsof -nP -iTCP:5173 -iTCP:8000 -sTCP:LISTEN` found node listening at 127.0.0.1:5173 (PID 31052) and Python at 127.0.0.1:8000 (PID 31055). Their startup commands and ownership by this task were not verified; neither was current HTTP health. Earlier browser interactions are described above and in report.md, but no fresh integrated browser walkthrough was run during this documentation refresh. Do not stop these processes without confirming ownership; only stop processes started for the current task.
+Actual live Gemini two-call browser evidence over synthetic ZIP 16803:
+October 11–13 Campus $230, Valley $270; exact dated nightly facts and checkout
+exclusion; zero-room Budget excluded. Budget under $50, missing October 15,
+and absent ZIP 16804 produced distinct correct answers. The final successful
+turn is `f2afaf26-5a1e-4a1c-870e-252b37e6b39c`, conversation
+`7162961e-62a4-49b6-b727-850f7a0ffb91`.
 
-## Risks, next action, and verification boundary
+Actual Geoapify ZIP 16802 returned 21 places. Browser Add saved Scholar with
+five simulated default nights; duplicate API save preserved one record and
+all nights; both backend and frontend were restarted, and reload restored
+saved hotel/history with local-first lookup. Remove cascaded its ZIP/night
+rows. Card/map selection, map Enter, chat Enter/Shift+Enter/Escape/Edit,
+invalid ZIP, Harbor one hotel/two stays, blank and no-results were observed.
 
-- The Part 1 submission is due 2026-09-29 according to docs/assignment2-description.md. Research, an early mockup, a recorded demonstration, a Part 1 report, an assessed commit, and AI evidence are specified there. Confirm the actual submission requirements against the course source before final submission; the existing sketch was made during implementation, as its notes disclose.
-- README.md now describes both search modes; docs/verification.md still focuses on the older name-search and booking workflow. Do not treat historical live ZIP counts in report.md as fixed expectations; provider coverage varies.
-- Recommended next action: review the Part 1 report and demo for course submission, especially the mockup timing TODO. For later development, plan the Part 2 shortlist separately. Read AGENTS.md, README.md, this handoff, docs/assignment2-description.md, report.md, and docs/verification.md first.
+Separate mock browser checks covered leading-zero ZIP, empty/unresolved/
+provider failure, quota, rejected UPDATE, unsupported answer and filtered
+zero candidates with three saved hotels. Retry of the bad-answer mock
+failed safely as expected. Both browser warning/error logs were empty.
+The mock popup fit a measured 520px viewport; no horizontal overflow.
+See stage6 for the full expected-versus-observed table and screenshots.
 
-Verified in this merge task: remote baseline and successful push of the merge, source file inventory, staged diff check, automated test/build/read-only lint results, and a clean working tree immediately after the merge push. Still to verify: service command lines and current HTTP health, a fresh live Geoapify search and complete browser walkthrough, the video's contents, the mockup's creation timing, and the actual course submission.
+## Services and databases
+
+All task-owned servers were stopped with Ctrl+C and both temporary tabs
+closed; viewport override reset. Final `lsof` found no listeners on
+8000/8001/8002/5173/5174/5175. No unrelated process was stopped.
+
+Normal audit used ignored `backend/db/part2-oct8-audit.sqlite3`,
+backend 8001/frontend 5174; mocks used `part2-oct8-mock.sqlite3`,
+backend 8002/frontend 5175. See command log for exact startup commands.
+Both fixture DBs: schema 7, 3 saved hotels/3 ZIPs/6 nights, no foreign-key
+violations, original eight hotels/twelve trips/six seed bookings.
+The default runtime was inspected read-only: schema 6,
+8 hotels/12 trips/10 bookings, 1 saved/1 ZIP/5 nights, no violations.
+It was not reset or migrated; normal next startup migrates to schema 7.
+
+## Limits and next action
+
+Verified: full regression/build/lint, current live model flow, direct SQLite
+comparison, controlled failure UI, local CRUD/persistence, current branch
+push/public repository, safe staging, 29 current Markdown files' references,
+and service cleanup. No data CSV, Part 1 geocoding/place/map code, package
+manifest or lockfile changed.
+
+Unverified: Part 2 video/link/instructor access, student final report review
+and submission, every natural-language query or provider failure, full
+browser-process restart, and exact earlier Codex selector. These checks
+establish synthetic saved inventory, not live rates or bookable rooms.
+An archived `a1-report.md` references an absent local
+`Expedia Lite Demo.mp4`; it was not recreated and is separate from Part 2.
+
+Read AGENTS, README, this handoff, verification, stage6 and recording guide.
+After reconstruction and the student's authorization, start a new fixture
+for the video (or reuse the audit DB without resetting it), record the
+question→SQL→records→second recommendation→displayed answer and expected
+versus observed checks, add the accessible link, review/upload `report.md`.

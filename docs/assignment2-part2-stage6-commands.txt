@@ -1,0 +1,286 @@
+October 8 authorized readiness repair — shell command transcript
+Commands run from project root unless [frontend/] is stated.
+Multiline scripts are preserved. Browser actions, apply_patch edits and
+Ctrl+C cleanup are recorded in stage6.md separately.
+The final five commands are executed immediately after saving this log.
+
+1. cat AGENTS.md; sed -n '1,80p' README.md; sed -n '200,340p' README.md; cat backend/controllers/rag_chat.py; sed -n '120,290p' backend/controllers/gemini.py; cat backend/models/retrieval.py
+
+2. cat backend/tests/test_gemini.py; cat backend/tests/test_rag_chat.py; cat backend/models/chat.py; cat backend/tests/test_retrieval.py
+
+3. cat handoffs/create-handoff.md; cat docs/design-pipeline.md; sed -n '1,110p' docs/verification.md; git status --porcelain=v1 -uall; git branch -vv; git remote -v; lsof -nP -iTCP:8000 -iTCP:5173 -iTCP:8001 -iTCP:5174 -sTCP:LISTEN
+
+4. sed -n '1,55p' backend/models/schema.py; cat frontend/src/components/ZipLookupPanel.vue; cat frontend/src/components/NearbyHotelsMap.vue; cat frontend/vite.config.js; cat .gitignore; rg -n '\]\(docs/mockups|mockups/' README.md report.md docs handoffs -g '*.md'; git diff --numstat
+
+5. rg -n 'RetrievalResult\(' backend; sed -n '90,180p' backend/tests/test_retrieval.py; sed -n '1740,1985p' frontend/src/assets/main.css; git diff -- README.md report.md | head -45; git status --porcelain=v1 -uall | wc -l
+
+6. sed -n '70,145p' backend/controllers/gemini.py; sed -n '215,310p' backend/controllers/gemini.py; sed -n '120,185p' backend/controllers/chat_history.py
+
+7. backend/.venv/bin/python -m pytest backend/tests/test_grounded_answer.py backend/tests/test_retrieval.py backend/tests/test_gemini.py backend/tests/test_rag_chat.py -q
+
+8. backend/.venv/bin/python -m pytest backend/tests -q
+
+9. [frontend/] npm test; npm exec -- oxlint .; npm exec -- eslint .; npm run build
+
+10. backend/.venv/bin/python -m backend.prepare_rag_demo backend/db/part2-oct8-audit.sqlite3
+
+11. backend/.venv/bin/python -c 'from pathlib import Path; import uvicorn; from backend.app.main import create_app; uvicorn.run(create_app(Path("backend/db/part2-oct8-audit.sqlite3")), host="127.0.0.1", port=8001)'
+
+12. [frontend/] EXPEDIA_API_TARGET=http://127.0.0.1:8001 npm run dev -- --host 127.0.0.1 --port 5174 --strictPort
+
+13. backend/.venv/bin/python - <<'PY'
+from pathlib import Path
+import json, sqlite3
+path=Path('backend/db/part2-oct8-audit.sqlite3')
+connection=sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True)
+connection.row_factory=sqlite3.Row
+for row in connection.execute('SELECT stage,detail_json,prompt_version FROM chat_retrieval_stages ORDER BY stage_id'):
+    print(json.dumps(dict(row)),flush=True)
+print('Business counts:',[(table,connection.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]) for table in ('hotels','trips','bookings','saved_hotels','saved_hotel_zips','demo_hotel_nights')])
+print('Foreign keys:',connection.execute('PRAGMA foreign_key_check').fetchall())
+connection.close()
+PY
+
+14. rg -n -A 20 'class NearbyHotelSearch|class ExternalHotel|class PostcodeLocation|class PostcodeNotFoundError' backend/models/entities.py backend/controllers/errors.py; backend/.venv/bin/python -m backend.inspect_rag_demo backend/db/part2-oct8-audit.sqlite3; backend/.venv/bin/python -m backend.tests.browser_scenarios --help
+
+15. Ctrl+C task-owned backend session 59870 (PID 84891)
+
+16. Ctrl+C task-owned frontend session 98254
+
+17. backend/.venv/bin/python -c 'from pathlib import Path; import uvicorn; from backend.app.main import create_app; uvicorn.run(create_app(Path("backend/db/part2-oct8-audit.sqlite3")), host="127.0.0.1", port=8001)'
+
+18. [frontend/] EXPEDIA_API_TARGET=http://127.0.0.1:8001 npm run dev -- --host 127.0.0.1 --port 5174 --strictPort
+
+19. backend/.venv/bin/python - <<'PY'
+import httpx,sqlite3
+from pathlib import Path
+base='http://127.0.0.1:8001'
+with httpx.Client(base_url=base,timeout=10) as client:
+    health=client.get('/api/health'); print('Health:',health.status_code,health.json())
+    found=client.get('/api/hotels/search',params={'name':'Harbor'}); print('Harbor:',found.status_code,found.json()['hotel_count'],len(found.json()['results']))
+    blank=client.get('/api/hotels/search',params={'name':' '}); print('Blank:',blank.status_code,blank.json())
+    local=client.get('/api/saved-hotels',params={'postcode':'16802'}).json(); hotel=local['hotels'][0]
+    payload={'hotel':{key:hotel[key] for key in ('place_id','name','address','latitude','longitude')},'center':local['center']}
+    print('Duplicate save:',client.post('/api/saved-hotels',json=payload).status_code)
+    again=client.get('/api/saved-hotels',params={'postcode':'16802'}).json()
+    print('Duplicate keeps one hotel and nightly values:',len(again['hotels']),again['hotels']==local['hotels'])
+    print('Saved provider hotel ID:',hotel['place_id'])
+connection=sqlite3.connect(Path('backend/db/part2-oct8-audit.sqlite3').resolve().as_uri()+'?mode=ro',uri=True)
+print('Saved hotel, ZIP, night counts:',[connection.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0] for table in ('saved_hotels','saved_hotel_zips','demo_hotel_nights')])
+connection.close()
+PY
+
+20. lsof -nP -iTCP:8002 -iTCP:5175 -sTCP:LISTEN; backend/.venv/bin/python -m backend.prepare_rag_demo backend/db/part2-oct8-mock.sqlite3
+
+21. backend/.venv/bin/python -m backend.tests.browser_scenarios backend/db/part2-oct8-mock.sqlite3 --port 8002
+
+22. [frontend/] EXPEDIA_API_TARGET=http://127.0.0.1:8002 npm run dev -- --host 127.0.0.1 --port 5175 --strictPort
+
+23. backend/.venv/bin/python -m pytest backend/tests -q
+
+24. git diff --check; git ls-files .env; git check-ignore -v .env backend/.venv frontend/node_modules frontend/dist backend/db/part2-oct8-audit.sqlite3; rg -l 'AIza[0-9A-Za-z_-]{30,}|sk-[A-Za-z0-9_-]{24,}' backend frontend/src docs prompts README.md report.md -g '!backend/.venv/**'; git hash-object docs/mockups/a2.1-mockups.png; git rev-parse HEAD:docs/mockups/a2-mockups.png; git diff -- data backend/controllers/geocoding.py backend/controllers/places.py frontend/src/components/NearbyHotelsMap.vue
+
+25. backend/.venv/bin/python - <<'PY'
+from pathlib import Path
+import json,sqlite3
+for file in ['part2-oct8-audit.sqlite3','part2-oct8-mock.sqlite3','expedia_lite.sqlite3']:
+    connection=sqlite3.connect((Path('backend/db')/file).resolve().as_uri()+'?mode=ro',uri=True)
+    connection.row_factory=sqlite3.Row
+    tables={r[0] for r in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    counts={table:connection.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0] for table in ('hotels','trips','bookings','saved_hotels','saved_hotel_zips','demo_hotel_nights','chat_messages') if table in tables}
+    print(file,counts,'schema',connection.execute("SELECT value FROM app_metadata WHERE key='schema_version'").fetchone()[0],'FK violations',len(connection.execute('PRAGMA foreign_key_check').fetchall()))
+    if 'chat_messages' in tables:
+        print('Turns:',[dict(row) for row in connection.execute("SELECT turn_id,role,content FROM chat_messages WHERE role='user' ORDER BY message_id")])
+        print('Failed turns without assistant:',connection.execute("SELECT count(DISTINCT e.turn_id) FROM chat_retrieval_stages e WHERE e.stage='error' AND NOT EXISTS (SELECT 1 FROM chat_messages m WHERE m.turn_id=e.turn_id AND m.role='assistant')").fetchone()[0])
+    connection.close()
+PY
+
+26. git status --short && git branch --show-current && git log -1 --format='%H %s'
+
+27. cat README.md report.md
+
+28. cat docs/verification.md docs/assignment2-part2-plan.md docs/rag-context.md
+
+29. cat handoffs/create-handoff.md handoffs/current.md
+
+30. cat backend/controllers/grounded_answer.py backend/inspect_rag_demo.py
+
+31. cat report.md
+
+32. cat docs/verification.md docs/assignment2-part2-plan.md
+
+33. cat docs/rag-context.md
+
+34. sed -n '345,620p' report.md
+
+35. cat docs/verification.md
+
+36. sed -n '1,32p' docs/assignment2-part2-plan.md; cat AGENTS.md; cat docs/design-pipeline.md
+
+37. sed -n '306,349p' report.md; cat backend/controllers/rag_chat.py backend/controllers/gemini.py
+
+38. backend/.venv/bin/python -m backend.inspect_rag_demo backend/db/part2-oct8-audit.sqlite3 --turn-id f2afaf26-5a1e-4a1c-870e-252b37e6b39c
+
+39. sed -n '250,372p' README.md
+
+40. backend/.venv/bin/python -m backend.inspect_rag_demo backend/db/part2-oct8-audit.sqlite3 --turn-id f2afaf26-5a1e-4a1c-870e-252b37e6b39c > docs/assignment2-part2-stage6-trace.txt
+
+41. git diff --stat && git remote -v && git branch -vv
+
+42. backend/.venv/bin/python - <<'PY'
+from pathlib import Path
+p = Path('docs/test-screenshots/part2-oct8-checked-answer-detail.png')
+p.unlink()
+print('Removed task-created screenshot with invalid crop; full screenshot retained.')
+PY
+
+43. rg -n 'a2-mockups|docs/mockups/(trivago|green-brand|map-credit|selected-marker)|mockups/(trivago|green-brand|map-credit|selected-marker)' --glob '*.md' --glob '!frontend/node_modules/**' --glob '!backend/.venv/**'
+
+44. git diff -- backend/app/main.py backend/app/routes.py backend/app/schemas.py backend/config.py backend/controllers/database.py backend/models/schema.py frontend/src/App.vue frontend/src/components/NearbyHotelsPanel.vue frontend/vite.config.js
+
+45. cat backend/tests/test_grounded_answer.py backend/tests/browser_scenarios.py
+
+46. Service cleanup: Ctrl+C sent to task-owned sessions 82009 (8001), 64167 (5174), 16097 (8002), 62485 (5175); all exited.
+
+47. lsof -nP -iTCP:8000 -iTCP:8001 -iTCP:8002 -iTCP:5173 -iTCP:5174 -iTCP:5175 -sTCP:LISTEN
+
+48. git diff --check && git check-ignore .env backend/.venv frontend/node_modules frontend/dist backend/db/part2-oct8-audit.sqlite3 && git diff --name-only -- data backend/controllers/geocoding.py backend/controllers/places.py frontend/src/components/NearbyHotelsMap.vue backend/requirements.txt frontend/package.json frontend/package-lock.json
+
+49. backend/.venv/bin/python - <<'PY'
+import re
+import subprocess
+from pathlib import Path
+from urllib.parse import unquote
+files = subprocess.check_output(['rg', '--files', '-g', '*.md'], text=True).splitlines()
+missing = []
+for filename in files:
+    path = Path(filename)
+    for match in re.finditer(r'!?\[[^\]]*\]\((<[^>]+>|[^\s)]+)(?:\s+[^)]*)?\)', path.read_text()):
+        target = match.group(1).strip('<>')
+        if target.startswith(('https:', 'http:', 'mailto:', 'app:', 'codex:', '#')):
+            continue
+        target = unquote(target.split('#')[0])
+        if target and not (path.parent / target).exists():
+            missing.append((filename, target))
+print('Markdown files checked:', len(files))
+print('Missing local references:', missing)
+assert not missing
+PY
+
+50. rg -l 'AIza[0-9A-Za-z_-]{30,}|sk-[A-Za-z0-9_-]{24,}' backend frontend/src docs prompts README.md report.md -g '!backend/.venv/**' -g '!backend/db/**'
+
+51. backend/.venv/bin/python - <<'PY'
+import re
+import subprocess
+from pathlib import Path
+from urllib.parse import unquote
+files = [p for p in subprocess.check_output(['rg', '--files', '-g', '*.md'], text=True).splitlines() if p != 'a1-report.md']
+missing = []
+for filename in files:
+    path = Path(filename)
+    for match in re.finditer(r'!?\[[^\]]*\]\((<[^>]+>|[^\s)]+)(?:\s+[^)]*)?\)', path.read_text()):
+        target = match.group(1).strip('<>')
+        if target.startswith(('https:', 'http:', 'mailto:', 'app:', 'codex:', '#')):
+            continue
+        target = unquote(target.split('#')[0])
+        if target and not (path.parent / target).exists():
+            missing.append((filename, target))
+print('Current Markdown files checked:', len(files))
+print('Missing current references:', missing)
+assert not missing
+PY
+
+52. backend/.venv/bin/python - <<'PY'
+import json
+import sqlite3
+from pathlib import Path
+expected = json.loads(Path('docs/part2-rag-fixture.json').read_text())
+for name in ['expedia_lite.sqlite3', 'part2-oct8-audit.sqlite3', 'part2-oct8-mock.sqlite3']:
+    db = sqlite3.connect((Path('backend/db') / name).resolve().as_uri() + '?mode=ro', uri=True)
+    print(name, 'schema', db.execute("SELECT value FROM app_metadata WHERE key='schema_version'").fetchone()[0])
+    print({table: db.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0] for table in ['hotels', 'trips', 'bookings', 'saved_hotels', 'saved_hotel_zips', 'demo_hotel_nights']})
+    print('foreign-key violations', len(db.execute('PRAGMA foreign_key_check').fetchall()))
+    if name.startswith('part2-'):
+        print('saved hotel names:', db.execute('SELECT hotel_id, name FROM saved_hotels ORDER BY hotel_id').fetchall())
+    db.close()
+PY
+
+53. git status --porcelain=v1 -uall
+
+54. git add -- AGENTS.md README.md a2.1-report.md backend docs frontend prompts ':!docs/assignment2-part2-stage6-commands.txt'
+
+55. git diff --cached --check && git diff --cached --stat
+
+56. backend/.venv/bin/python - <<'PY'
+import re
+import subprocess
+paths = subprocess.check_output(['git', 'diff', '--cached', '--name-only', '--diff-filter=ACMR'], text=True).splitlines()
+for path in paths:
+    assert not re.search(r'(^|/)(\.env|\.venv|node_modules|__pycache__|dist)(/|$)|^backend/db/', path), path
+    data = subprocess.check_output(['git', 'show', ':' + path])
+    if b'\0' not in data:
+        assert not re.search(rb'AIza[0-9A-Za-z_-]{30,}|sk-[A-Za-z0-9_-]{24,}', data), path
+print('Staged added/modified paths reviewed:', len(paths))
+print('No prohibited generated paths or credential-pattern matches.')
+PY
+
+57. backend/.venv/bin/python - <<'PY'
+from pathlib import Path
+for filename in ['docs/assignment2-part2-demo.md', 'docs/assignment2-part2-instructor-chatbot-notes.txt']:
+    p = Path(filename)
+    p.write_text(p.read_text().rstrip() + '\n')
+    print('Normalized final newline:', filename)
+PY
+
+58. git add -- docs/assignment2-part2-demo.md docs/assignment2-part2-instructor-chatbot-notes.txt docs/assignment2-part2-stage6.md
+
+59. git diff --cached --check && git diff --cached --stat
+
+60. git commit -m "Implement checked saved-hotel RAG chat and verify Part 2 workflow"
+
+61. git rev-parse HEAD && git status --short && git log -3 --oneline
+
+62. git push -u origin rag_integration
+
+63. git rev-parse --show-toplevel && git branch -vv && git status --short && git ls-remote --heads origin rag_integration
+
+64. backend/.venv/bin/python - <<'PY'
+import json
+from urllib.request import Request, urlopen
+url = 'https://api.github.com/repos/jclee2044/expedia-lite'
+with urlopen(Request(url, headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'Expedia-Lite-readiness-check'}), timeout=15) as response:
+    repo = json.load(response)
+    print('Anonymous repository status:', response.status)
+    print('Repository:', repo['full_name'], 'private:', repo['private'])
+PY
+
+65. cat handoffs/current.md
+
+66. git diff --check && backend/.venv/bin/python - <<'PY'
+import re
+from pathlib import Path
+from urllib.parse import unquote
+for filename in ['README.md', 'report.md', 'handoffs/current.md', 'docs/assignment2-part2-demo.md', 'docs/assignment2-part2-stage6.md', 'docs/verification.md', 'docs/rag-context.md']:
+    p = Path(filename)
+    for match in re.finditer(r'!?\[[^\]]*\]\((<[^>]+>|[^\s)]+)(?:\s+[^)]*)?\)', p.read_text()):
+        target = match.group(1).strip('<>')
+        if target.startswith(('https:', 'http:', '#', 'mailto:', 'codex:')):
+            continue
+        target = unquote(target.split('#')[0])
+        assert (p.parent / target).exists(), (filename, target)
+report = Path('report.md').read_text()
+assert '23b9dc21f7008a47538a3835cb09ea031e8c2746' in report
+assert 'GPT-6.1 Sol' in report and 'Part 2 video: TODO' in report
+assert 'prompt version 4' not in Path('handoffs/current.md').read_text()
+print('Final report, handoff, current references and whitespace checks passed.')
+PY
+
+67. git add -- report.md handoffs/current.md docs/assignment2-part2-stage6-commands.txt
+
+68. git diff --cached --check && git diff --cached --stat
+
+69. git commit -m "Update Part 2 submission report and verified handoff"
+
+70. git push
+
+71. git status --short && git log -2 --format='%H %s' && git diff 23b9dc2 HEAD -- backend frontend prompts data && git ls-remote --heads origin rag_integration
