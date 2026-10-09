@@ -13,6 +13,28 @@ class StayRequest:
 
 
 @dataclass(frozen=True)
+class HotelListRequest:
+    """A ZIP-only identity lookup; makes no nightly availability claim."""
+
+    postcode: str
+
+
+@dataclass(frozen=True)
+class SavedHotelFact:
+    hotel_id: str
+    name: str | None
+    address: str | None
+    postcode: str
+
+
+@dataclass(frozen=True)
+class HotelListResult:
+    candidate_ids: tuple[str, ...]
+    hotels: tuple[SavedHotelFact, ...]
+    saved_hotel_count: int
+
+
+@dataclass(frozen=True)
 class VerifiedNight:
     stay_date: str
     nightly_rate_cents: int

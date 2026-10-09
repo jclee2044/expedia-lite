@@ -11,9 +11,9 @@ from uuid import uuid4
 
 from backend.controllers.database import connect_database
 from backend.models.chat import ConversationHistory, StoredChatMessage
-from backend.models.retrieval import StayRequest
+from backend.models.retrieval import HotelListRequest, StayRequest
 
-PROMPT_VERSION = "5"
+PROMPT_VERSION = "6"
 
 
 class ConversationNotFoundError(ValueError):
@@ -25,7 +25,7 @@ class StartedTurn:
     conversation_id: str
     turn_id: str
     previous_messages: tuple[StoredChatMessage, ...]
-    previous_request: StayRequest | None
+    previous_request: StayRequest | HotelListRequest | None
 
 
 def _now() -> str:
@@ -42,7 +42,9 @@ def _messages(connection: sqlite3.Connection, conversation_id: str) -> tuple[Sto
     return tuple(StoredChatMessage(**dict(row)) for row in rows)
 
 
-def _previous_request(connection: sqlite3.Connection, conversation_id: str) -> StayRequest | None:
+def _previous_request(
+    connection: sqlite3.Connection, conversation_id: str
+) -> StayRequest | HotelListRequest | None:
     row = connection.execute(
         """
         SELECT detail_json FROM chat_retrieval_stages
@@ -55,7 +57,7 @@ def _previous_request(connection: sqlite3.Connection, conversation_id: str) -> S
     request = json.loads(row["detail_json"]).get("request")
     if not isinstance(request, dict):
         return None
-    return StayRequest(**request)
+    return HotelListRequest(**request) if set(request) == {"postcode"} else StayRequest(**request)
 
 
 def start_turn(database_path: Path, conversation_id: str | None, question: str) -> StartedTurn:

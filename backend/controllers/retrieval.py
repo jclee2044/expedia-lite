@@ -9,7 +9,10 @@ from pathlib import Path
 from time import monotonic
 from typing import Mapping
 
-from backend.models.retrieval import RetrievalResult, StayRequest, VerifiedNight, VerifiedStay
+from backend.models.retrieval import (
+    HotelListRequest, HotelListResult, SavedHotelFact,
+    RetrievalResult, StayRequest, VerifiedNight, VerifiedStay,
+)
 
 ALLOWED_TABLES = frozenset({"saved_hotels", "saved_hotel_zips", "demo_hotel_nights"})
 REQUIRED_BINDS = frozenset({"postcode", "check_in", "check_out"})
@@ -35,21 +38,26 @@ def _parse_day(value: str) -> date:
     return parsed
 
 
-def _validate_proposal(
-    sql: str, params: Mapping[str, str], request: StayRequest
-) -> tuple[str, date, date]:
+def _validate_sql_shape(sql: str, params: Mapping[str, str], required_binds: frozenset[str]) -> None:
+    """Enforce the same bounded SELECT shape for dated and identity lookups."""
     if not isinstance(sql, str) or not (0 < len(sql) <= MAX_SQL_LENGTH):
         raise RetrievalRejectedError("Proposed SQL length is invalid.")
     if not re.match(r"\A\s*SELECT\b", sql, re.IGNORECASE):
         raise RetrievalRejectedError("Proposed SQL must start with SELECT.")
     if any(token in sql for token in (";", "--", "/*", "*/", "'", '"', "`", "?", "$", "@")):
         raise RetrievalRejectedError("Proposed SQL uses unsupported syntax.")
-    if set(_BIND_PATTERN.findall(sql)) != REQUIRED_BINDS:
-        raise RetrievalRejectedError("Proposed SQL must use the three named binds.")
-    if not isinstance(params, Mapping) or set(params) != REQUIRED_BINDS or not all(
+    if set(_BIND_PATTERN.findall(sql)) != required_binds:
+        raise RetrievalRejectedError("Proposed SQL must use the required named binds.")
+    if not isinstance(params, Mapping) or set(params) != required_binds or not all(
         isinstance(value, str) for value in params.values()
     ):
         raise RetrievalRejectedError("Proposed parameters are invalid.")
+
+
+def _validate_proposal(
+    sql: str, params: Mapping[str, str], request: StayRequest
+) -> tuple[str, date, date]:
+    _validate_sql_shape(sql, params, REQUIRED_BINDS)
     if not isinstance(request, StayRequest):
         raise RetrievalRejectedError("Trusted stay request is required.")
     trusted_params = {
@@ -210,6 +218,39 @@ def retrieve_saved_stays(
     try:
         candidate_ids = _candidate_ids(connection, proposed_sql, trusted_params)
         return _verify_candidates(connection, candidate_ids, postcode, check_in, check_out)
+    finally:
+        connection.rollback()
+        connection.close()
+
+
+def retrieve_saved_hotels(
+    database_path: Path, proposed_sql: str, proposed_params: Mapping[str, str],
+    request: HotelListRequest,
+) -> HotelListResult:
+    """Read only bounded hotel identities; independently recheck ZIP membership."""
+    _validate_sql_shape(proposed_sql, proposed_params, frozenset({"postcode"}))
+    if (not isinstance(request, HotelListRequest) or not isinstance(request.postcode, str)
+            or not _POSTCODE_PATTERN.fullmatch(request.postcode)):
+        raise RetrievalRejectedError("Trusted five-digit ZIP request is required.")
+    if dict(proposed_params) != {"postcode": request.postcode}:
+        raise RetrievalRejectedError("Proposed parameters differ from the requested ZIP.")
+    connection = _read_only_connection(database_path)
+    try:
+        ids = _candidate_ids(connection, proposed_sql, {"postcode": request.postcode})
+        hotels: list[SavedHotelFact] = []
+        for hotel_id in ids:
+            row = connection.execute(
+                "SELECT h.hotel_id, h.name, h.address, z.postcode FROM saved_hotels h "
+                "JOIN saved_hotel_zips z ON z.hotel_id=h.hotel_id "
+                "WHERE h.hotel_id=? AND z.postcode=?", (hotel_id, request.postcode),
+            ).fetchone()
+            if row is not None:
+                hotels.append(SavedHotelFact(**dict(row)))
+        hotels.sort(key=lambda hotel: ((hotel.name or "").casefold(), hotel.hotel_id))
+        saved_count = connection.execute(
+            "SELECT COUNT(*) FROM saved_hotel_zips WHERE postcode=?", (request.postcode,),
+        ).fetchone()[0]
+        return HotelListResult(ids, tuple(hotels), saved_count)
     finally:
         connection.rollback()
         connection.close()

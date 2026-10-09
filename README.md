@@ -205,12 +205,21 @@ the conversation. A failed reply is not saved as a successful assistant
 message. The popup shows an error; missing ZIP/date context offers **Edit
 question**, while a provider or retrieval failure offers **Retry reply**.
 
-Ask with one five-digit ZIP and either one night or check-in and checkout
+Simple identity questions such as “17042 has what hotels” need only a ZIP.
+They use the same two-call flow with a postcode-only SELECT and checked saved
+names/addresses, including hotels without nightly records. The answer makes
+no price or availability claim and explains that saved rows are not a complete
+area inventory. A ZIP with no saved hotels gets an honest empty-list answer.
+
+For prices, cheapest comparisons, rooms or availability, ask with one
+five-digit ZIP and either one night or check-in and checkout
 dates, using ISO dates (`2026-10-11`) or full month dates (`October 11,
 2026`). Two dates are interpreted in check-in then checkout order. A follow-up
 may reuse the previous ZIP and dates if it explicitly says “same,” “that,”
 “those,” or “there.” Ambiguous or missing context gets a clarification error
-without sending a model request. Rates and room counts are simulated course
+without sending a model request. The UI displays these as clarification
+requests with an Edit question button, including after a page reload;
+they are not labeled interrupted replies. Rates and room counts are simulated course
 data; the chat cannot make bookings or verify live hotel inventory.
 
 `POST /api/chat/stream` accepts a nonblank `question` of at most 500
@@ -251,7 +260,7 @@ and rooms from those records. It saves this checked answer and then sends it
 to Vue in chunks. Invented prose fields, unsupported IDs, inconsistent
 reasons, and incomplete model responses produce an error without a successful
 assistant message. Conversation and stage records include timestamps,
-turn IDs, prompt version 5, `second_model_answer`, and `answer_validation`.
+turn IDs, prompt version 6, `second_model_answer`, and `answer_validation`.
 Provider keys and raw provider errors never go to the browser. The
 `sql_proposal` and `grounded_answer` instructions are in
 `prompts/hotel-assistant.md`.
@@ -313,6 +322,13 @@ candidate set therefore cannot be mistaken for an absence of saved hotels.
 A no-match result has no verified stays.
 The chat endpoint calls this controller between its two model requests. Tests
 use synthetic temporary databases.
+
+Its ZIP-only identity lookup uses a separate `HotelListRequest`/`HotelListResult`
+contract with exactly one trusted `:postcode` binding. It reuses the same
+read-only connection, authorizer, candidate cap and time budget, independently
+checks each hotel's ZIP membership, and returns only checked names/addresses.
+Stay retrieval still requires the three exact ZIP/date binds and complete
+nightly coverage; date-free lists never infer prices or available rooms.
 
 Schema version 7 adds `chat_conversations`, `chat_messages`, and
 `chat_retrieval_stages` for durable history and trace. The
@@ -507,7 +523,7 @@ the no-results state separately. Live place counts can change.
 - `docs/assignment2-description.md` describes the ZIP-search and later shortlist assignment; `docs/assignment2-part1-notes.md` records Part 1 design decisions.
 - `docs/assignment2-part2-revised.md` records the October 1 RAG revision and links the supplied instructor notes; `docs/assignment2-part2-plan.md` records prerequisites and human checkpoints. The older Part 2 shortlist description is historical.
 - `docs/assignment2-part2-preflight.md` records the Turn 0 foundation checks, synthetic RAG fixture, popup research, and early SVG mockup.
-- `prompts/hotel-assistant.md` is the staged system prompt loaded by the raw Gemini preview. Its SQL and grounded-answer modes are reserved for later RAG work.
+- `prompts/hotel-assistant.md` is the versioned system prompt for SQL proposals and checked answers, including ZIP-only identity lists and dated stay queries.
 - `prompts/` preserves the selected setup and hotel-search instructions that shaped the project.
 - `handoffs/create-handoff.md` contains the reusable prompts for creating and verifying a handoff.
 - `handoffs/current.md` should exist only when a current continuation note has been created or refreshed.

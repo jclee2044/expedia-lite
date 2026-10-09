@@ -21,7 +21,7 @@ from backend.controllers import rag_chat
 from backend.controllers.errors import GeoapifyRequestError, PostcodeNotFoundError
 from backend.controllers.gemini import ChatTurn, GeminiStreamError, SqlProposal
 from backend.models import ExternalHotel, NearbyHotelSearch, PostcodeLocation
-from backend.models.retrieval import RetrievalResult, StayRequest
+from backend.models.retrieval import HotelListRequest, HotelListResult, RetrievalResult, StayRequest
 
 SQL = (
     "SELECT DISTINCT h.hotel_id AS hotel_id FROM saved_hotels h "
@@ -44,9 +44,15 @@ def nearby(postcode: str) -> NearbyHotelSearch:
     return NearbyHotelSearch(center, 5000, 50, hotels)
 
 
-async def propose(question: str, stay: StayRequest, history: list[ChatTurn], prompt: str) -> SqlProposal:
+async def propose(question: str, stay: StayRequest | HotelListRequest, history: list[ChatTurn], prompt: str) -> SqlProposal:
     if "MOCK rate-limit" in question:
         raise GeminiStreamError("Gemini is busy or at its rate limit. Try again later.")
+    if isinstance(stay, HotelListRequest):
+        return SqlProposal(
+            "SELECT h.hotel_id AS hotel_id FROM saved_hotels h "
+            "JOIN saved_hotel_zips z ON z.hotel_id=h.hotel_id WHERE z.postcode=:postcode",
+            {"postcode": stay.postcode},
+        )
     sql = "UPDATE saved_hotels SET name=:postcode" if "MOCK rejected-sql" in question else SQL
     if "MOCK filtered" in question:
         sql += " AND n.nightly_rate_cents <= 5000"
@@ -55,10 +61,14 @@ async def propose(question: str, stay: StayRequest, history: list[ChatTurn], pro
     })
 
 
-async def answer(question: str, stay: StayRequest, result: RetrievalResult,
+async def answer(question: str, stay: StayRequest | HotelListRequest, result: RetrievalResult | HotelListResult,
                  history: list[ChatTurn], prompt: str) -> AsyncIterator[str]:
     if "MOCK bad-answer" in question:
         yield json.dumps({"hotel_ids": [], "reason": "no_match", "answer": "October 14 costs $140"})
+        return
+    if isinstance(result, HotelListResult):
+        ids = [hotel.hotel_id for hotel in result.hotels[:10]]
+        yield json.dumps({"hotel_ids": ids, "reason": "saved_hotels" if ids else "no_match"})
         return
     ids = [item.hotel_id for item in result.matches[:3]]
     reason = "lowest_total_cost" if ids else "insufficient_data" if result.incomplete_ids else "no_match"

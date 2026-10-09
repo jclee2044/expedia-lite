@@ -2,6 +2,7 @@
 import { nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 
 import { getChatHistory, streamChatReply } from '../api/chatStream.js'
+import { applyReplyFailure } from '../chat/replyFailure.js'
 
 const STORAGE_KEY = 'expedia-lite-chat-conversation-id'
 
@@ -43,7 +44,9 @@ onMounted(async () => {
       retryQuestion.value = messages.value.at(-1).content
       errorMessage.value = history.last_error
       errorCode.value = history.last_error_code || 'retryable'
-      messages.value.push({ id: ++nextMessageId, role: 'assistant', content: '', state: 'error' })
+      const reply = { id: ++nextMessageId, role: 'assistant', content: '' }
+      announcement.value = applyReplyFailure(reply, { message: history.last_error, code: errorCode.value })
+      messages.value.push(reply)
     }
   } catch (error) {
     errorMessage.value = error.message || 'Saved chat history could not be loaded.'
@@ -125,11 +128,10 @@ async function sendQuestion(question) {
     }
   } catch (error) {
     if (controller.signal.aborted) return
-    reply.state = 'error'
     errorMessage.value = error.message || 'The chat reply stopped. Try again.'
     errorCode.value = error.code || 'retryable'
     retryQuestion.value = normalized
-    announcement.value = 'Hotel reply failed.'
+    announcement.value = applyReplyFailure(reply, { message: errorMessage.value, code: errorCode.value })
   } finally {
     isStreaming.value = false
     streamController.value = null
@@ -173,7 +175,7 @@ onBeforeUnmount(() => streamController.value?.abort())
 
         <div ref="log" class="chat-log" role="log" aria-label="Chat conversation" aria-live="off" @scroll="onLogScroll">
           <p v-if="!messages.length" class="chat-empty">
-            Ask about saved hotels using a ZIP and a dated night, such as 16802 on October 11, 2026.
+            Ask which hotels are saved for a ZIP. Include dates when asking about simulated prices or availability.
           </p>
           <article
             v-for="message in messages"
@@ -184,12 +186,13 @@ onBeforeUnmount(() => streamController.value?.abort())
             <span class="chat-message-role">{{ message.role === 'user' ? 'You' : 'Assistant' }}</span>
             <p>{{ message.content || (message.state === 'error' ? 'No answer was saved.' : 'Preparing a checked reply…') }}</p>
             <span v-if="message.state === 'streaming'" class="chat-streaming-label">Checking the recommendation…</span>
-            <span v-else-if="message.state === 'error'" class="chat-failed-label">Reply interrupted</span>
+            <span v-else-if="message.state === 'clarification'" class="chat-streaming-label">More information needed</span>
+            <span v-else-if="message.state === 'error'" class="chat-failed-label">Reply failed</span>
           </article>
         </div>
 
         <p class="chat-announcement" role="status">{{ announcement }}</p>
-        <div v-if="errorMessage" class="chat-error" role="alert">
+        <div v-if="errorMessage" class="chat-error" :class="{ 'chat-error--clarification': errorCode === 'missing_context' }" :role="errorCode === 'missing_context' ? 'status' : 'alert'">
           <span>{{ errorMessage }}</span>
           <button v-if="retryQuestion" type="button" @click="retryReply">{{ errorCode === 'missing_context' ? 'Edit question' : 'Retry reply' }}</button>
         </div>

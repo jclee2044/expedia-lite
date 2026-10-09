@@ -1874,6 +1874,12 @@ h1 {
   background: var(--brand-soft);
 }
 
+.chat-error.chat-error--clarification {
+  border-color: #d8d9df;
+  background: #f7f7f7;
+  color: var(--navy);
+}
+
 .chat-message--assistant {
   background: #f7f7f7;
   align-self: flex-start;

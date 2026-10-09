@@ -11,8 +11,8 @@ from typing import Literal, TypedDict
 import httpx
 
 from backend.config import PROJECT_ROOT, get_gemini_api_key
-from backend.controllers.grounded_answer import MAX_GROUNDED_HOTELS, RECOMMENDATION_REASONS
-from backend.models.retrieval import RetrievalResult, StayRequest
+from backend.controllers.grounded_answer import HOTEL_LIST_REASONS, MAX_GROUNDED_HOTELS, RECOMMENDATION_REASONS
+from backend.models.retrieval import HotelListRequest, HotelListResult, RetrievalResult, StayRequest
 
 MODEL = "gemini-3.5-flash-lite"
 STREAM_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:streamGenerateContent"
@@ -135,7 +135,7 @@ def _extract_text(data: str) -> list[str]:
 
 
 async def propose_sql(
-    question: str, request: StayRequest, history: list[ChatTurn], prompt: str,
+    question: str, request: StayRequest | HotelListRequest, history: list[ChatTurn], prompt: str,
     *, client: httpx.AsyncClient | None = None,
 ) -> SqlProposal:
     """Ask Gemini for one JSON SQL proposal; no database handle is supplied."""
@@ -147,13 +147,24 @@ async def propose_sql(
         "AND n.stay_date >= :check_in AND n.stay_date < :check_out "
         "WHERE z.postcode = :postcode"
     )
+    listing = isinstance(request, HotelListRequest)
+    if listing:
+        template = (
+            "SELECT DISTINCT h.hotel_id AS hotel_id FROM saved_hotels AS h "
+            "JOIN saved_hotel_zips AS z ON z.hotel_id = h.hotel_id "
+            "WHERE z.postcode = :postcode"
+        )
+    bind_rules = (
+        "postcode only; this is a hotel_list lookup with no dates, prices or availability. "
+        if listing else "postcode, check_in, check_out "
+    )
     instruction = (
         prompt + "\n\nCurrent mode: sql_proposal. Return only JSON with exactly "
-        "sql and params keys. params must have postcode, check_in, check_out "
+        "sql and params keys. params must have " + bind_rules +
         "matching the backend values. The SQL must return one hotel_id column. "
         "Prefer this safe candidate query unless a narrower query is needed: " + template
     )
-    ask = question + "\n\nBackend-verified stay: " + json.dumps(asdict(request))
+    ask = question + "\n\nBackend-verified request: " + json.dumps(asdict(request))
     payload = {
         "systemInstruction": {"parts": [{"text": instruction}]},
         "contents": build_contents(ask, history),
@@ -194,7 +205,7 @@ async def propose_sql(
 
 
 async def stream_grounded_answer(
-    question: str, request: StayRequest, result: RetrievalResult,
+    question: str, request: StayRequest | HotelListRequest, result: RetrievalResult | HotelListResult,
     history: list[ChatTurn], prompt: str,
     *, client: httpx.AsyncClient | None = None,
 ) -> AsyncIterator[str]:
@@ -208,7 +219,14 @@ async def stream_grounded_answer(
         "incomplete_count": len(result.incomplete_ids),
         "unavailable_count": len(result.unavailable_ids),
         "truncated": len(result.matches) > MAX_GROUNDED_HOTELS,
+    } if isinstance(result, RetrievalResult) else {
+        "request_kind": "hotel_list", "request": asdict(request),
+        "matches": [asdict(hotel) for hotel in result.hotels[:MAX_GROUNDED_HOTELS]],
+        "candidate_count": len(result.candidate_ids),
+        "saved_hotel_count": result.saved_hotel_count,
+        "truncated": len(result.hotels) > MAX_GROUNDED_HOTELS,
     }
+    reasons = HOTEL_LIST_REASONS if isinstance(result, HotelListResult) else RECOMMENDATION_REASONS
     ask = question + "\n\nChecked backend retrieval JSON: " + json.dumps(facts)
     payload = {
         "systemInstruction": {"parts": [{"text": prompt + "\n\nCurrent mode: grounded_answer. "
@@ -222,7 +240,7 @@ async def stream_grounded_answer(
                 "properties": {
                     "hotel_ids": {"type": "array", "items": {"type": "string"},
                                   "maxItems": MAX_GROUNDED_HOTELS},
-                    "reason": {"type": "string", "enum": list(RECOMMENDATION_REASONS)},
+                    "reason": {"type": "string", "enum": list(reasons)},
                 },
                 "required": ["hotel_ids", "reason"], "additionalProperties": False,
             },

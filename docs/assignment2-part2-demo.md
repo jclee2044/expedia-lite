@@ -26,10 +26,17 @@ If these ports are occupied, inspect ownership and use another pair. Never
 stop an unrelated service. Open http://127.0.0.1:5174/. This normal backend
 uses actual Gemini and Geoapify requests. Label saved rates and rooms
 **synthetic fixture**, not provider inventory. Model: Gemini 3.5 Flash-Lite;
-prompt version 5. A fresh database lacks the browser's old conversation ID;
+prompt version 6. A fresh database lacks the browser's old conversation ID;
 opening chat handles an unknown ID by beginning a new conversation.
 
 ## Suggested recording sequence
+
+Simple questions such as “16803 has what hotels” now list checked saved
+identities without dates. Prices and availability still need dates. A
+missing-date question shows “More information needed” with Edit question,
+including after reload. The [clarification follow-up](assignment2-part2-stage7.md)
+records the ZIP-only and dated live checks. Use the dated comparison below
+for the required nightly-data/two-JOIN demonstration.
 
 1. In ZIP mode, show saved ZIP 16803 with three fixture hotels and dated
    simulated nights. Explain the local-first lookup and separate Part 1

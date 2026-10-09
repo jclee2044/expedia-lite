@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from datetime import date, datetime, timedelta
 
-from backend.models.retrieval import StayRequest
+from backend.models.retrieval import HotelListRequest, StayRequest
 
 _ZIP = re.compile(r"(?<![0-9])[0-9]{5}(?![0-9])")
 _ISO_DATE = re.compile(r"\b[0-9]{4}-[0-9]{2}-[0-9]{2}\b")
@@ -36,7 +36,9 @@ def _read_date(value: str) -> date:
         raise ChatContextError("Use a valid date with a year, such as 2026-10-11.") from exc
 
 
-def parse_stay_request(question: str, previous: StayRequest | None = None) -> StayRequest:
+def parse_stay_request(
+    question: str, previous: StayRequest | HotelListRequest | None = None
+) -> StayRequest:
     """Accept one ZIP and one night or check-in/checkout dates in text.
 
     A follow-up can reuse earlier context only when it explicitly says
@@ -58,8 +60,11 @@ def parse_stay_request(question: str, previous: StayRequest | None = None) -> St
         raise ChatContextError("Please give one night or a check-in and checkout date.")
     dates = [_read_date(value) for _, _, value in spans]
     if not dates:
-        if not reuse:
-            raise ChatContextError("Include a dated night or check-in and checkout dates.")
+        if not reuse or not isinstance(previous, StayRequest):
+            raise ChatContextError(
+                "Which dated night or check-in and checkout dates would you like to check? "
+                "Include the year, such as 2026-10-11."
+            )
         check_in = date.fromisoformat(previous.check_in)
         check_out = date.fromisoformat(previous.check_out)
     elif len(dates) == 1:
@@ -71,3 +76,25 @@ def parse_stay_request(question: str, previous: StayRequest | None = None) -> St
     if not 1 <= nights <= 14:
         raise ChatContextError("A stay must be one to fourteen nights, with checkout after check-in.")
     return StayRequest(postcode, check_in.isoformat(), check_out.isoformat())
+
+
+def parse_hotel_request(
+    question: str, previous: StayRequest | HotelListRequest | None = None
+) -> StayRequest | HotelListRequest:
+    """Allow hotel identity lists without fabricating dates, rates or vacancies."""
+    dated = re.search(
+        r"availab|room|night|rate|price|cost|cheap|budget|expens|under|below|less than|"
+        r"\$|check.?in|check.?out|stay|book|vacanc|"
+        r"January|February|March|April|May|June|July|August|September|October|November|December|"
+        r"[0-9]{4}-[0-9]{2}-[0-9]{2}", question, re.IGNORECASE,
+    )
+    reuse = previous is not None and _SAME_CONTEXT.search(question) is not None
+    if dated or (reuse and isinstance(previous, StayRequest)) or not re.search(r"\bhotels?\b", question, re.IGNORECASE):
+        return parse_stay_request(question, previous)
+    zip_codes = _ZIP.findall(question)
+    if len(set(zip_codes)) > 1:
+        raise ChatContextError("Please use one five-digit ZIP code.")
+    postcode = zip_codes[0] if zip_codes else previous.postcode if reuse else None
+    if postcode is None:
+        raise ChatContextError("Include a five-digit ZIP code in your question.")
+    return HotelListRequest(postcode)

@@ -7,11 +7,12 @@ from collections.abc import AsyncIterator
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from backend.controllers.chat_context import ChatContextError, parse_stay_request
+from backend.controllers.chat_context import ChatContextError, parse_hotel_request
 from backend.controllers.chat_history import save_assistant, save_stage, start_turn
 from backend.controllers.gemini import GeminiStreamError, propose_sql, stream_grounded_answer
 from backend.controllers.grounded_answer import GroundingError, render_grounded_answer
-from backend.controllers.retrieval import RetrievalRejectedError, retrieve_saved_stays
+from backend.controllers.retrieval import RetrievalRejectedError, retrieve_saved_hotels, retrieve_saved_stays
+from backend.models.retrieval import HotelListRequest
 
 MAX_ANSWER_CHARS = 6000
 
@@ -38,14 +39,15 @@ async def stream_rag_answer(
             "conversation_id": started.conversation_id,
             "turn_id": started.turn_id,
         })
-        stay = parse_stay_request(question, started.previous_request)
+        stay = parse_hotel_request(question, started.previous_request)
         proposal = await propose_sql(question, stay, history, prompt)
         save_stage(database_path, started.conversation_id, started.turn_id,
                    "proposal", {"sql": proposal.sql, "params": proposal.params})
         save_stage(database_path, started.conversation_id, started.turn_id,
                    "execution", {"sql": proposal.sql, "params": proposal.params,
                                  "status": "attempted"})
-        result = retrieve_saved_stays(database_path, proposal.sql, proposal.params, stay)
+        retrieve = retrieve_saved_hotels if isinstance(stay, HotelListRequest) else retrieve_saved_stays
+        result = retrieve(database_path, proposal.sql, proposal.params, stay)
         save_stage(database_path, started.conversation_id, started.turn_id,
                    "result", {"request": asdict(stay), "retrieval": asdict(result)})
         chunks: list[str] = []

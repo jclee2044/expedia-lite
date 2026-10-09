@@ -126,7 +126,7 @@ def test_success_followup_and_history_survive_restart(
         assert [row["stage"] for row in stages] == [
             "proposal", "execution", "result", "proposal", "execution", "result"
         ]
-        assert all(row["prompt_version"] == "5" for row in stages)
+        assert all(row["prompt_version"] == "6" for row in stages)
         result = json.loads(stages[2]["detail_json"])
         assert result["retrieval"]["matches"][0]["total_cents"] == 12000
         assert result["second_model_answer"]["hotel_ids"] == ["fixture:campus"]

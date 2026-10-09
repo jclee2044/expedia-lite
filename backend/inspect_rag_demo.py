@@ -47,8 +47,13 @@ def inspect_turn(path: Path, turn_id: str | None = None) -> None:
                     "AND n.stay_date >= ? AND n.stay_date < ? "
                     "WHERE z.postcode = ? ORDER BY h.hotel_id, n.stay_date LIMIT 701",
                     (request["check_in"], request["check_out"], request["postcode"]),
+                ).fetchall() if "check_in" in request else connection.execute(
+                    "SELECT h.hotel_id, h.name, h.address, z.postcode FROM saved_hotels h "
+                    "JOIN saved_hotel_zips z ON z.hotel_id=h.hotel_id "
+                    "WHERE z.postcode=? ORDER BY h.name, h.hotel_id LIMIT 50",
+                    (request["postcode"],),
                 ).fetchall()
-                print("\nDIRECT SQLITE NIGHTLY ROWS (maximum 701)")
+                print("\nDIRECT SQLITE ROWS (nightly rows for stays; identities for ZIP-only lists)")
                 print(json.dumps([dict(item) for item in direct], indent=2))
         for message in messages[1:]:
             print("\nDISPLAYED ANSWER\n" + message["content"])

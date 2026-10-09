@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import json
 
-from backend.models.retrieval import RetrievalResult, StayRequest
+from backend.models.retrieval import HotelListRequest, HotelListResult, RetrievalResult, StayRequest
 
 MAX_GROUNDED_HOTELS = 10
 RECOMMENDATION_REASONS = (
     "lowest_total_cost", "available_for_stay", "no_match", "insufficient_data"
 )
+HOTEL_LIST_REASONS = ("saved_hotels", "no_match")
 
 
 class GroundingError(ValueError):
@@ -17,9 +18,11 @@ class GroundingError(ValueError):
 
 
 def render_grounded_answer(
-    raw: str, request: StayRequest, result: RetrievalResult
+    raw: str, request: StayRequest | HotelListRequest, result: RetrievalResult | HotelListResult
 ) -> tuple[str, dict[str, object]]:
     """Accept IDs and a supported reason only; never display model-written facts."""
+    if isinstance(request, HotelListRequest) and isinstance(result, HotelListResult):
+        return _render_hotel_list(raw, request, result)
     try:
         recommendation = json.loads(raw)
         if not isinstance(recommendation, dict) or set(recommendation) != {"hotel_ids", "reason"}:
@@ -74,4 +77,38 @@ def render_grounded_answer(
     if len(result.matches) > MAX_GROUNDED_HOTELS:
         lines.append(f"The model considered the {MAX_GROUNDED_HOTELS} cheapest checked matches; additional matches exist.")
     lines.extend(["", label])
+    return "\n".join(lines), recommendation
+
+
+def _render_hotel_list(
+    raw: str, request: HotelListRequest, result: HotelListResult
+) -> tuple[str, dict[str, object]]:
+    """Render checked hotel identities without inventing stay dates or prices."""
+    try:
+        recommendation = json.loads(raw)
+        if not isinstance(recommendation, dict) or set(recommendation) != {"hotel_ids", "reason"}:
+            raise ValueError
+        ids, reason = recommendation["hotel_ids"], recommendation["reason"]
+        allowed = {hotel.hotel_id: hotel for hotel in result.hotels[:MAX_GROUNDED_HOTELS]}
+        if not isinstance(ids, list) or any(not isinstance(item, str) for item in ids):
+            raise ValueError
+        if len(ids) != len(set(ids)) or any(item not in allowed for item in ids):
+            raise ValueError
+        if reason not in HOTEL_LIST_REASONS or bool(ids) != (reason == "saved_hotels"):
+            raise ValueError
+    except (ValueError, TypeError, KeyError) as exc:
+        raise GroundingError("The model's recommendation could not be checked. Try again.") from exc
+    if not ids:
+        summary = (f"No hotel is saved for ZIP {request.postcode}." if result.saved_hotel_count == 0
+                   else "No checked saved hotel matched the question's requested conditions.")
+        return (summary + "\nUse ZIP Code search to discover hotels and Add to Local to save them. "
+                "This is a local saved list, not a complete area inventory."), recommendation
+    lines = [f"Saved hotels associated with ZIP {request.postcode}:"]
+    for hotel_id in ids:
+        hotel = allowed[hotel_id]
+        lines.append(f"• {hotel.name or 'Name unavailable'}" + (f" — {hotel.address}" if hotel.address else ""))
+    if len(result.hotels) > MAX_GROUNDED_HOTELS:
+        lines.append(f"The model considered the first {MAX_GROUNDED_HOTELS} checked hotels; additional saved hotels exist.")
+    lines.extend(["", "These are local saved records, not a complete area inventory.",
+                  "Ask with a dated night or check-in/checkout dates to check simulated rates and room availability."])
     return "\n".join(lines), recommendation
