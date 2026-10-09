@@ -1761,6 +1761,41 @@ h1 {
   box-shadow: 0 20px 60px rgba(25, 30, 59, 0.25);
 }
 
+.chat-panel-enter-active {
+  transition:
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    clip-path 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 220ms ease-out;
+}
+
+.chat-panel-leave-active {
+  transition:
+    transform 200ms ease-in,
+    clip-path 200ms ease-in,
+    opacity 160ms ease-in;
+}
+
+.chat-panel-enter-from,
+.chat-panel-leave-to {
+  opacity: 0;
+  transform: translateY(2rem);
+  clip-path: inset(100% 0 0 0);
+}
+
+.chat-panel-enter-to,
+.chat-panel-leave-from {
+  opacity: 1;
+  transform: translateY(0);
+  clip-path: inset(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-panel-enter-active,
+  .chat-panel-leave-active {
+    transition: none;
+  }
+}
+
 .chat-panel-header {
   display: flex;
   align-items: flex-start;

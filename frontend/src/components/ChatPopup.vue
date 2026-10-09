@@ -154,62 +154,65 @@ onBeforeUnmount(() => streamController.value?.abort())
 
 <template>
   <div class="chat-dock">
-    <section
-      v-show="isOpen"
-      id="hotel-chat-panel"
-      class="chat-panel"
-      aria-labelledby="hotel-chat-title"
-      @keydown.esc="closeChat"
-    >
-      <header class="chat-panel-header">
-        <div>
-          <p class="chat-kicker">Saved hotel assistant · simulated data</p>
-          <h2 id="hotel-chat-title">Ask Expedia Lite</h2>
+    <Transition name="chat-panel">
+      <section
+        v-show="isOpen"
+        id="hotel-chat-panel"
+        class="chat-panel"
+        aria-labelledby="hotel-chat-title"
+        :inert="!isOpen"
+        @keydown.esc="closeChat"
+      >
+        <header class="chat-panel-header">
+          <div>
+            <p class="chat-kicker">Saved hotel assistant · simulated data</p>
+            <h2 id="hotel-chat-title">Ask Expedia Lite</h2>
+          </div>
+          <button type="button" class="chat-close" aria-label="Close chat" @click="closeChat">×</button>
+        </header>
+
+        <div ref="log" class="chat-log" role="log" aria-label="Chat conversation" aria-live="off" @scroll="onLogScroll">
+          <p v-if="!messages.length" class="chat-empty">
+            Ask about saved hotels using a ZIP and a dated night, such as 16802 on October 11, 2026.
+          </p>
+          <article
+            v-for="message in messages"
+            :key="message.id"
+            class="chat-message"
+            :class="`chat-message--${message.role}`"
+          >
+            <span class="chat-message-role">{{ message.role === 'user' ? 'You' : 'Assistant' }}</span>
+            <p>{{ message.content || (message.state === 'error' ? 'No answer was saved.' : 'Preparing a checked reply…') }}</p>
+            <span v-if="message.state === 'streaming'" class="chat-streaming-label">Checking the recommendation…</span>
+            <span v-else-if="message.state === 'error'" class="chat-failed-label">Reply interrupted</span>
+          </article>
         </div>
-        <button type="button" class="chat-close" aria-label="Close chat" @click="closeChat">×</button>
-      </header>
 
-      <div ref="log" class="chat-log" role="log" aria-label="Chat conversation" aria-live="off" @scroll="onLogScroll">
-        <p v-if="!messages.length" class="chat-empty">
-          Ask about saved hotels using a ZIP and a dated night, such as 16802 on October 11, 2026.
-        </p>
-        <article
-          v-for="message in messages"
-          :key="message.id"
-          class="chat-message"
-          :class="`chat-message--${message.role}`"
-        >
-          <span class="chat-message-role">{{ message.role === 'user' ? 'You' : 'Assistant' }}</span>
-          <p>{{ message.content || (message.state === 'error' ? 'No answer was saved.' : 'Preparing a checked reply…') }}</p>
-          <span v-if="message.state === 'streaming'" class="chat-streaming-label">Checking the recommendation…</span>
-          <span v-else-if="message.state === 'error'" class="chat-failed-label">Reply interrupted</span>
-        </article>
-      </div>
-
-      <p class="chat-announcement" role="status">{{ announcement }}</p>
-      <div v-if="errorMessage" class="chat-error" role="alert">
-        <span>{{ errorMessage }}</span>
-        <button v-if="retryQuestion" type="button" @click="retryReply">{{ errorCode === 'missing_context' ? 'Edit question' : 'Retry reply' }}</button>
-      </div>
-
-      <form class="chat-composer" @submit.prevent="submitQuestion">
-        <label for="chat-question">Ask a question</label>
-        <div class="chat-composer-row">
-          <textarea
-            id="chat-question"
-            ref="input"
-            v-model="draft"
-            rows="2"
-            maxlength="500"
-            placeholder="Ask about a hotel stay…"
-            :disabled="isStreaming || isLoadingHistory"
-            @keydown.enter.exact.prevent="submitQuestion"
-          ></textarea>
-          <button type="submit" :disabled="isStreaming || isLoadingHistory || !draft.trim()">Send</button>
+        <p class="chat-announcement" role="status">{{ announcement }}</p>
+        <div v-if="errorMessage" class="chat-error" role="alert">
+          <span>{{ errorMessage }}</span>
+          <button v-if="retryQuestion" type="button" @click="retryReply">{{ errorCode === 'missing_context' ? 'Edit question' : 'Retry reply' }}</button>
         </div>
-        <p class="chat-help">Enter to send · Shift+Enter for a new line</p>
-      </form>
-    </section>
+
+        <form class="chat-composer" @submit.prevent="submitQuestion">
+          <label for="chat-question">Ask a question</label>
+          <div class="chat-composer-row">
+            <textarea
+              id="chat-question"
+              ref="input"
+              v-model="draft"
+              rows="2"
+              maxlength="500"
+              placeholder="Ask about a hotel stay…"
+              :disabled="isStreaming || isLoadingHistory"
+              @keydown.enter.exact.prevent="submitQuestion"
+            ></textarea>
+            <button type="submit" :disabled="isStreaming || isLoadingHistory || !draft.trim()">Send</button>
+          </div>
+          <p class="chat-help">Enter to send · Shift+Enter for a new line</p>
+        </form>
+      </section>
+    </Transition>
 
     <button
       ref="launcher"
