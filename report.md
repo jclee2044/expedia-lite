@@ -13,7 +13,7 @@ define the scope. SQLite is sufficient; no vector database was added.
 Repository: [Expedia Lite](https://github.com/jclee2044/expedia-lite), branch
 `rag_integration`. **Assessed application commit:
 [`1e6825a`](https://github.com/jclee2044/expedia-lite/commit/1e6825afc68f12b68c61a80e7f8968dd6d256d4b).**
-This verified implementation checkpoint is pushed to the public repository.
+This verified implementation checkpoint includes the final off-white UI.
 The report and handoff are saved in its subsequent documentation commit.
 
 Use Python 3.12 and the Node.js version documented in [README.md](README.md).
@@ -36,16 +36,72 @@ the [recording guide](docs/assignment2-part2-demo.md). Its preparation command
 refuses to overwrite an existing database. It preserves the default runtime
 database and the course CSVs.
 
-## Research and early mockup
+## Research notes
 
-The [early Assignment 2.2 mockup](docs/mockups/a2.2-mockups.png) and
-[preflight](docs/assignment2-part2-preflight.md) preceded the chat source
-changes. The [student's chat sketch](docs/mockups/a2.2-mockups.png) shows the
-Chat launcher and bordered popup. The popup uses the existing green palette,
-allows the page behind it to remain interactive, and supports keyboard
-open/close and sending. The [W3C dialog guidance](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/)
-informed the non-modal behavior. [MDN's log role reference](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Roles/log_role)
-informed the sequential conversation region.
+I compared three chatbot interface examples while deciding how I wanted the
+chatbot on my website to look and behave.
+
+### Tidio: a chatbot that opens automatically
+
+[Tidio's chat-widget example](https://www.tidio.com/blog/live-chat-button/)
+describes a setting that opens the chat window as soon as someone visits a
+website. This is an example of the automatically opened corner-chat pattern,
+not evidence that Tidio's own homepage always forces its chatbot to stay open.
+
+I don't like this type of chatbot when it is always open and in the way. It
+clogs up the interface and makes it harder to see the actual webpage content
+when I don't need to use the chatbot. I feel that it increases cognitive load
+because there is another panel competing for my attention. I wanted my chat
+interface to stay out of the way until the user chooses to open it.
+
+### Expedia: a small button and a simple chat panel
+
+I liked the small corner chat button on [Expedia](https://www.expedia.com/helpcenter/)
+because it doesn't get in the way when I am using the rest of the website.
+I also liked the sleek interface and smooth animation when opening the chat.
+However, I didn't like how the chat panel was mostly a plain white background.
+I felt that it didn't have enough visual contrast and could better match the
+website's branding. My screenshot below shows the opened Virtual Agent panel;
+the button and animation comments describe my interaction with it, rather
+than something that a still screenshot can demonstrate.
+
+![Expedia Virtual Agent reference supplied by the student](/Users/jlee/Desktop/psu4/ist402/a1_expedia_lite/docs/mockups/expedia-virtual-agent.png)
+
+### Intercom: a branded chat interface
+
+The green chat interface in [Intercom's Exemplary Bank demonstration](https://www.intercom.com/blog/videos/new-at-intercom-full/)
+is closer to the final design I wanted. The demo uses a green header and
+accent colors that complement the surrounding website. Exemplary Bank is a
+demonstration brand, not a bank website that I tested.
+
+I think this chatbot UI looks sleek and professional. It uses brand colors
+and feels like part of the website instead of a separate box added on top.
+Overall, it matches the type of chat interface I wanted my website to have:
+a small launcher when it is closed, a clear header when it is open, and
+colors that match the rest of the interface.
+
+## Early mockup and changes to the original design
+
+My [early Assignment 2.2 mockup](docs/mockups/a2.2-mockups.png) shows the
+Chat launcher and bordered popup. The [preflight notes](docs/assignment2-part2-preflight.md)
+and [supporting layout sketch](docs/assignment2-part2-chat-mockup.svg)
+record the planned chat states.
+
+![Early Assignment 2.2 mockup](/Users/jlee/Desktop/psu4/ist402/a1_expedia_lite/docs/mockups/a2.2-mockups.png)
+
+I originally planned for the banner to be the same light green color as the
+user text bubbles, but I found that it felt too basic and needed more
+contrast. So, I changed the top menu bar of the chat popup to darker green.
+I felt that this looked much more stable and showed a clearer visual hierarchy
+through the colors. The darker header separates the title and controls from
+the conversation, while the lighter green still works for the user messages.
+
+I kept the small corner button so the chat doesn't cover the page until it
+is needed. The popup allows the page behind it to remain interactive and
+supports keyboard opening, closing, and sending. The
+[W3C dialog guidance](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/)
+and [MDN log-role reference](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Roles/log_role)
+were technical references for these behaviors.
 
 Google's [generate-content API](https://ai.google.dev/api/generate-content)
 informed the backend provider calls. Its [structured-output guide](https://ai.google.dev/gemini-api/docs/structured-output)
@@ -55,11 +111,6 @@ SQLite's [authorizer documentation](https://www.sqlite.org/c3ref/set_authorizer.
 informed the table/function allowlist for proposed SQL. Independent backend
 queries verify ZIP membership, nightly coverage, rooms, and integer-cent
 totals; the LLM receives no database connection.
-
-![Early Assignment 2.2 mockup](/Users/jlee/Desktop/psu4/ist402/a1_expedia_lite/docs/mockups/a2.2-mockups.png)
-
-The [supporting popup layout sketch](docs/assignment2-part2-chat-mockup.svg)
-records the additional chat states.
 
 ## Local-storage foundation and architecture
 
@@ -178,9 +229,126 @@ answer. It was independently read from the ignored
 `backend/db/part2-oct8-audit.sqlite3` database. [rag-context.md](docs/rag-context.md)
 also retains the October 6 checkpoints as historical evidence.
 
-## Expected-versus-observed verification
+## Verification record
 
-All rows below were exercised during the October 8 readiness work.
+I used the [fixed JSON sample](docs/part2-rag-fixture.json) to make the saved
+hotel checks repeatable. It contains three fictional hotels, their ZIP
+associations, six dated nightly records, and expected results. These rates
+and room counts are simulated classroom data, not live hotel inventory.
+The observations below come from the October 8 verification recorded in the
+[readiness record](docs/assignment2-part2-stage6.md) and
+[saved trace](docs/assignment2-part2-stage6-trace.txt); they were not new live
+model calls made while editing this report.
+
+### Test 1: Successful two-night comparison
+
+When the user asks “Compare saved hotels near ZIP 16803 from 2026-10-11 to
+2026-10-13 by total cost”:
+
+- Expected: Campus Lantern costs $230 and Valley Ridge costs $270 for October
+  11 and 12. Checkout is excluded. Nittany Budget is excluded because it has
+  zero rooms on October 11.
+- Observed: The answer showed Campus at $230 and Valley at $270, with the
+  correct nightly dates, prices, room counts, and simulated-data label.
+- Evidence: Successful live Gemini calls over the synthetic fixture. The
+  question, proposed query, retrieved rows, and answer are shown above.
+
+### Test 2: No hotel matches the requested budget
+
+When the user asks for saved hotels near ZIP 16803 on October 11 for under
+$50 a night:
+
+- Expected: No hotel is recommended, but the answer does not claim that no
+  hotels are saved for this ZIP.
+- Observed: The model selected no hotels and the interface gave a no-match
+  explanation. The retrieval trace still showed three saved hotels.
+- Evidence: Successful live Gemini calls over the synthetic fixture.
+
+### Test 3: Requested nightly data is missing
+
+When the user asks for hotels near ZIP 16803 on October 15:
+
+- Expected: The answer explains that availability cannot be verified because
+  the sample has no nightly records for that date.
+- Observed: The query found three hotel candidates, but all three lacked the
+  requested night. The answer said availability could not be verified.
+- Evidence: Successful live Gemini calls over the synthetic fixture.
+
+### Test 4: No hotel is saved for the ZIP
+
+When the user asks for hotels near ZIP 16804:
+
+- Expected: No hotel is recommended or invented.
+- Observed: The saved-hotel count and candidate count were zero, and the
+  answer explained that no hotel was saved for this ZIP.
+- Evidence: Successful live Gemini calls over the synthetic fixture.
+
+### Test 5: A disallowed query is proposed
+
+When the labeled failure mock proposes an UPDATE query:
+
+- Expected: The backend rejects it, the saved hotel records stay unchanged,
+  and no successful assistant answer is saved.
+- Observed: The interface showed the rejection. The temporary-database
+  tests confirmed unchanged hotel, ZIP, and nightly-row counts.
+- Evidence: Deliberately mocked model proposal and synthetic test databases,
+  not a live model asked to change records. The query and proof are below.
+
+### Reproducing the fixed-sample checks
+
+Reproducing these checks means loading the same JSON sample into a fresh
+SQLite database, asking the same questions, and comparing the checked
+records and displayed facts with the sample's `expected` values. It does
+**not** mean getting the entire fixture JSON back from the chatbot. A live
+model can propose equivalent SQL or phrase/select its answer differently.
+The important checks are the hotel IDs, dates, exclusions, totals, safe
+failure behavior, and whether the answer is supported by retrieved records.
+
+From the project root, configure `GEMINI_API_KEY` in the ignored `.env` and
+choose a new database filename if the following one already exists. The
+preparation command refuses to overwrite an existing database.
+
+```bash
+backend/.venv/bin/python -m backend.prepare_rag_demo backend/db/part2-report-check.sqlite3
+backend/.venv/bin/python -c 'from pathlib import Path; import uvicorn; from backend.app.main import create_app; uvicorn.run(create_app(Path("backend/db/part2-report-check.sqlite3")), host="127.0.0.1", port=8001)'
+```
+
+In a second terminal, from `frontend/`:
+
+```bash
+EXPEDIA_API_TARGET=http://127.0.0.1:8001 npm run dev -- --host 127.0.0.1 --port 5174 --strictPort
+```
+
+Use an available port pair if those ports are already occupied; do not stop
+an unrelated service. Open `http://127.0.0.1:5174/` and repeat Tests 1–4.
+After each completed question, run this from the project root to show the
+latest saved question, proposed SQL, bindings, checked records, second-model
+selection, and displayed answer:
+
+```bash
+backend/.venv/bin/python -m backend.inspect_rag_demo backend/db/part2-report-check.sqlite3
+```
+
+Compare these facts with the fixed sample: October 11 gives Campus $120 and
+Valley $130; October 12 gives Budget $90, Campus $110, and Valley $140;
+October 11–13 gives Campus $230 and Valley $270; ZIP 16804 gives no matches;
+October 15 gives missing-data exclusions. For Test 5 and repeatable failure
+checks without live model calls, run:
+
+```bash
+backend/.venv/bin/python -m pytest backend/tests/test_retrieval.py backend/tests/test_grounded_answer.py backend/tests/test_rag_chat.py -q
+```
+
+These tests use their own labeled temporary fixtures and mocked model replies;
+some include an extra incomplete hotel to exercise missing-data behavior.
+They do not return the JSON sample or consume live model quota. The
+[recording guide](docs/assignment2-part2-demo.md) also explains how to run the
+explicitly mocked browser failures and compare preserved rows. Stop only the
+servers started for these checks when finished.
+
+### Additional October 8 checks
+
+The following checks were also recorded during the October 8 readiness work.
 Live Gemini used synthetic saved hotels; Geoapify used actual place data.
 Deliberate failure cases used the explicitly labeled mock harness or
 temporary databases.
@@ -230,20 +398,15 @@ Two pre-existing dependency deprecation warnings remain.
 
 ## AI disclosure, limitations and recording
 
-For the October 8 critical review, repairs, tests, browser interaction and
-documentation, I used **Codex with GPT-6.1 Sol**, confirmed from this chat's
-model selector. The runtime chatbot uses **Gemini 3.5 Flash-Lite**
-(`gemini-3.5-flash-lite`) for both model requests. Earlier Part 2 work was
-recorded as Codex/GPT-6; the exact earlier selector name is not independently
-confirmed here. The earlier Part 1 disclosure below identifies GPT-6 Sol.
+I used **Codex with GPT-6.1 Sol** for Assignment 2.2, including implementation,
+review, tests, browser checks, and report updates. The runtime chatbot uses
+**Gemini 3.5 Flash-Lite** (`gemini-3.5-flash-lite`) for its two model requests.
+That is the model used by the application, separate from the model I used
+in Codex.
 
-The user directed “critically review the current implementation” and
-“please plan and resolve those gaps step by step.” These prompts led to
-independent saved-ZIP counting, the structured recommendation contract,
-[grounding regression tests](backend/tests/test_grounded_answer.py), browser
-failure scenarios, and the updated evidence. Earlier prompts included
-“plan + execute turn 3,” “autoloop after each run. automated browser testing,”
-and “continue to turn 4,” leading to guarded retrieval and durable chat.
+**TODO: Add my Assignment 2.2 sample prompts and connect each one to the
+resulting implementation or evidence after I provide them.** The earlier
+Part 1 prompt log below is historical and is not the Assignment 2.2 log.
 
 A failed approach was accepting free-form second-model prose. A live review
 found correct two-night totals with an incorrect nightly date. Another
@@ -327,7 +490,7 @@ Test 6: When the user enters letters such as `abcde` for the ZIP code and submit
 - Expected: The interface does not accept letters as a valid ZIP code.
 - Actual: The form rejects letters on submission with “Enter exactly five digits for a U.S. ZIP code.”
 
-## AI disclosure and evidence log
+## Earlier Part 1 AI disclosure and evidence log
 
 I used **Codex with GPT-6 Sol** for the implementation, visual previews, and verification. These prompt excerpts show how I directed the work.
 

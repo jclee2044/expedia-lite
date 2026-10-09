@@ -70,6 +70,11 @@ final browser/build evidence plus clearly labeled historical cream previews.
 The earlier complete RAG checkpoint is `23b9dc2` (88 paths); its report and
 handoff commit is `bf7e1b8`. Both were previously pushed. Anonymous GitHub
 API access at that checkpoint returned 200 and `private=false`.
+The new application and documentation commits are saved locally. Publishing
+them is pending explicit user approval: automatic approval review rejected
+the push because the latest request authorized commits and file updates but
+did not explicitly authorize exporting this payload to the GitHub destination.
+Recheck local/remote state before treating the assessed commit as published.
 
 This handoff/report and updated verification log form a subsequent
 documentation-only commit.
