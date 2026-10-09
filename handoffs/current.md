@@ -78,7 +78,13 @@ by the latest user request. Confirm its actual outcome in the final audit and
 with git ls-remote --heads origin rag_integration; do not infer remote state
 solely from this pre-commit snapshot. No main merge, PR or branch switch was requested.
 No secrets, runtime databases, venv, node_modules, caches or build output are staged.
-Expected final checkout: clean after the authorized documentation/media commit.
+The authorized documentation/media push succeeded at
+84c6230997cad585fac9b1547d0ec589d87224b7: local/remote SHAs matched, checkout
+was clean and no application code differed from 2eae498. Anonymous HEAD
+checks returned 200 for the assessed source, report, pinned images and movie.
+This documentation-only follow-up records those observed outcomes; verify
+its own final SHA/remote with git log and git ls-remote on resumption.
+Expected final checkout: clean after that follow-up.
 A later user edit can change that; always recheck.
 
 ## Observed verification

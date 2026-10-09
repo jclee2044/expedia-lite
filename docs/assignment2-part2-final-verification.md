@@ -93,3 +93,20 @@ git ls-remote --heads origin rag_integration
 After publishing, verify remote SHA equals local HEAD and the assessed source/
 raw asset/report/recording URLs respond. The final response reports observed
 push/checkout results. No Canvas upload or submission was performed.
+
+## Observed publication outcome
+
+The authorized push succeeded: origin/rag_integration advanced from bf7e1b8
+to 84c6230997cad585fac9b1547d0ec589d87224b7. git ls-remote matched local HEAD;
+git status --short was empty and the application diff from 2eae498 was empty.
+Anonymous HTTP HEAD checks returned 200 for the assessed commit API, the
+84c6230 report, pinned early mockup, pinned clarification screenshot and
+branch recording URL. No movie download was performed for those checks.
+The resulting report/media snapshot is publicly available. This short
+documentation follow-up records those actual outcomes and is pushed afterward.
+
+Post-publication commands: a project-Python urllib/ThreadPoolExecutor HEAD
+check of the five URLs above; git add -- handoffs/current.md
+docs/assignment2-part2-final-verification.md; git commit -m "Record verified Part 2 publication";
+git push origin rag_integration; git status --short;
+git log -1 --format='%H %s'; git ls-remote --heads origin rag_integration.
