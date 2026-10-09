@@ -1840,6 +1840,7 @@ h1 {
 }
 
 .chat-message--assistant {
+  background: #f7f7f7;
   align-self: flex-start;
 }
 

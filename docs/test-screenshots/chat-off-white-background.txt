@@ -1,0 +1,16 @@
+Final requested color: neutral off-white #f7f7f7.
+Source changed: frontend/src/assets/main.css, .chat-message--assistant.
+Screenshot added: docs/test-screenshots/chat-off-white-background.png.
+This supersedes the earlier off-white/cream previews.
+
+One AutoLoop cycle: npm run build passed (31 modules); automated browser
+restored existing messages and confirmed five assistant bubbles rendered
+rgb(247,247,247). Console warnings/errors were empty. No new model call.
+No backend behavior changed; backend tests were not rerun.
+
+Commands: npm run build from frontend/; the same backend and frontend preview
+startup commands recorded in chat-cream-background.txt; Ctrl+C to task-owned
+sessions 32195 and 45569; git diff --check && git diff -- frontend/src/assets/main.css && git status --short;
+lsof -nP -iTCP:8001 -iTCP:5174 -sTCP:LISTEN.
+Both services exited, final port check found no listeners, and the temporary
+browser tab was closed. No source/test failures occurred.

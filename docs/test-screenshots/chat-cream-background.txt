@@ -1,0 +1,38 @@
+Historical cream assistant message background verification
+Source change: frontend/src/assets/main.css, .chat-message--assistant
+Earlier background #fffdd0. Screenshot: chat-cream-background.png.
+Superseded by the final neutral off-white #f7f7f7; see chat-off-white-background.txt.
+The first #fffaf2 preview was superseded after the user requested plain cream.
+
+AutoLoop acceptance: assistant messages render cream; production CSS builds.
+One cycle passed; no corrections or dependency changes.
+npm run build passed (31 modules); automated browser restored saved messages,
+checked five assistant bubbles as rgb(255,253,208), and captured the final result.
+Browser warning/error log was empty. No new provider question was submitted.
+Backend tests were not rerun for this CSS-only change.
+Both preview runs' task-owned servers exited after Ctrl+C; final lsof had no listeners.
+Browser discovery initially found no existing preview tab; a temporary tab was
+created, bound after an initial variable-binding error, verified, then closed.
+
+Shell commands run from project root unless marked frontend:
+cat AGENTS.md README.md
+rg -n 'chat-message|assistant|background' frontend/src/components/ChatPopup.vue frontend/src/assets/main.css; git status --short; cat docs/verification.md
+sed -n '1808,1856p' frontend/src/assets/main.css
+lsof -nP -iTCP:8001 -iTCP:5174 -sTCP:LISTEN
+[frontend] npm run build
+backend/.venv/bin/python -c 'from pathlib import Path; import uvicorn; from backend.app.main import create_app; uvicorn.run(create_app(Path("backend/db/part2-oct8-audit.sqlite3")), host="127.0.0.1", port=8001)'
+[frontend] EXPEDIA_API_TARGET=http://127.0.0.1:8001 npm run dev -- --host 127.0.0.1 --port 5174 --strictPort
+Ctrl+C to task-owned sessions 25954 and 83767
+git diff --check && git diff -- frontend/src/assets/main.css && git status --short
+lsof -nP -iTCP:8001 -iTCP:5174 -sTCP:LISTEN
+
+Files changed/created this turn:
+frontend/src/assets/main.css
+docs/test-screenshots/chat-cream-background.png
+docs/test-screenshots/chat-cream-background.txt
+
+Plain cream correction: one additional AutoLoop cycle passed. The frontend
+build and browser computed-style check passed again with no console errors.
+The same backend/frontend startup commands above were run again, followed by
+Ctrl+C to sessions 43809 and 55858. The final git diff/check/status command
+and lsof command above were each repeated. No model request was submitted.
