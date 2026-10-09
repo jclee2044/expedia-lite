@@ -13,7 +13,9 @@ implemented and verified on `rag_integration`. The October 8 critical
 review found two actual grounding defects, repaired them, and tested the
 complete workflow. The student will record the Part 2 demo. Remaining:
 record it, test instructor access, add the link to `report.md`, review the
-report and submit it. Do not invent a video link or claim submission.
+report and submit it. The current report also has a TODO for the student's
+Assignment 2.2 sample prompts and their implementation/evidence links.
+Do not invent those prompts, a video link, or a submission claim.
 
 Use Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`) for both runtime model
 requests. Today's Codex review/repair model is **GPT-6.1 Sol**, confirmed by
@@ -75,6 +77,12 @@ them is pending explicit user approval: automatic approval review rejected
 the push because the latest request authorized commits and file updates but
 did not explicitly authorize exporting this payload to the GitHub destination.
 Recheck local/remote state before treating the assessed commit as published.
+Concurrent report edits were retained in the documentation checkpoint,
+including research notes, detailed verification prose and the sample-prompt
+TODO. Its referenced `docs/mockups/expedia-virtual-agent.png` was inspected:
+it shows a generic public chatbot interface with no traveler identity or
+credentials, and is included in the documentation follow-up. These research
+claims were not independently reverified during the Git update.
 
 This handoff/report and updated verification log form a subsequent
 documentation-only commit.

@@ -46,3 +46,14 @@ The final check instead used git status --short, git log -2 --format='%H %s',
 git diff 1e6825a HEAD -- backend frontend prompts data, and git branch -vv.
 The report's premature pushed claim was removed, and the handoff records the
 publication limit. These follow-up documentation edits were committed locally.
+During final inspection, concurrent report edits and a new referenced
+docs/mockups/expedia-virtual-agent.png were found. The report edits were
+preserved, the public-interface screenshot inspected, and the image included
+so the report reference is committed. The handoff retains its sample-prompt
+TODO. No application behavior changed or research claim was newly verified.
+Additional commands: git show --stat HEAD && git show HEAD -- report.md &&
+rg -n 'Assessed|commit/|expedia-virtual|TODO' report.md;
+git diff --check;
+git add -- docs/mockups/expedia-virtual-agent.png handoffs/current.md docs/test-screenshots/chat-off-white-background.txt;
+git commit -m "Include referenced research image and refresh report handoff";
+git status --short && git log -4 --oneline.
