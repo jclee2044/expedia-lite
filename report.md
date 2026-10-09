@@ -12,9 +12,13 @@ define the scope. SQLite is sufficient; no vector database was added.
 
 Repository: [Expedia Lite](https://github.com/jclee2044/expedia-lite), branch
 `rag_integration`. **Assessed application commit:
-[`1e6825a`](https://github.com/jclee2044/expedia-lite/commit/1e6825afc68f12b68c61a80e7f8968dd6d256d4b).**
-This verified implementation checkpoint includes the final off-white UI.
-The report and handoff are saved in its subsequent documentation commit.
+[`bbff2ca`](https://github.com/jclee2044/expedia-lite/commit/bbff2ca32b3eb29a98954343ebee2d23a4a8e2da).**
+This local implementation checkpoint includes the final off-white UI and
+the chat popup's upward opening animation, quicker closing animation, and
+reduced-motion support. [Animation verification](docs/chat-animation-verification.md)
+records the frontend and browser checks and their limits. Publication of
+this commit is pending; its GitHub link will work after it is pushed.
+The report and refreshed handoff are saved in a subsequent documentation commit.
 
 Use Python 3.12 and the Node.js version documented in [README.md](README.md).
 Create the project-owned environments with:
@@ -38,21 +42,18 @@ database and the course CSVs.
 
 ## Research notes
 
-I compared three chatbot interface examples while deciding how I wanted the
-chatbot on my website to look and behave.
+I looked at chatbot interfaces and thought about my experiences with them
+while deciding how I wanted the chatbot on my website to look and behave.
 
-### Tidio: a chatbot that opens automatically
+### Chatbots that get in the way
 
-[Tidio's chat-widget example](https://www.tidio.com/blog/live-chat-button/)
-describes a setting that opens the chat window as soon as someone visits a
-website. This is an example of the automatically opened corner-chat pattern,
-not evidence that Tidio's own homepage always forces its chatbot to stay open.
-
-I don't like this type of chatbot when it is always open and in the way. It
-clogs up the interface and makes it harder to see the actual webpage content
-when I don't need to use the chatbot. I feel that it increases cognitive load
-because there is another panel competing for my attention. I wanted my chat
-interface to stay out of the way until the user chooses to open it.
+I've seen websites before where the chatbot is always open in the corner
+and in the way. I don't like that pattern because it clogs up the interface
+and makes it harder to see the actual webpage content when I don't need to
+use the chatbot. I feel that it increases cognitive load because there is
+another panel competing for my attention. I wanted to make sure my website
+didn't have that problem, so the chat stays closed until the user chooses
+to open it.
 
 ### Expedia: a small button and a simple chat panel
 
@@ -95,6 +96,14 @@ contrast. So, I changed the top menu bar of the chat popup to darker green.
 I felt that this looked much more stable and showed a clearer visual hierarchy
 through the colors. The darker header separates the title and controls from
 the conversation, while the lighter green still works for the user messages.
+
+The chat button originally said “Chat with Gemini.” I requested that it just
+say “Chat” because there was no need to clarify the model there. I felt that
+the model name was distracting from the purpose of the website.
+
+I originally asked for the assistant responses to have a cream background,
+but the result looked too butter yellow. I had it changed again to off-white,
+which was closer to what I wanted.
 
 I kept the small corner button so the chat doesn't cover the page until it
 is needed. The popup allows the page behind it to remain interactive and
@@ -404,9 +413,78 @@ review, tests, browser checks, and report updates. The runtime chatbot uses
 That is the model used by the application, separate from the model I used
 in Codex.
 
-**TODO: Add my Assignment 2.2 sample prompts and connect each one to the
-resulting implementation or evidence after I provide them.** The earlier
-Part 1 prompt log below is historical and is not the Assignment 2.2 log.
+### Assignment 2.2 sample prompts and evidence log
+
+These are sample prompts I used to direct the work. The earlier Part 1
+prompt log below is historical and is separate from Assignment 2.2.
+
+I asked for help getting the Gemini API set up and choosing the runtime model:
+
+```text
+use computer use to access the browser and direct me to getting a free api key for gemini. select the model for assignment 2.2
+```
+
+The [provider setup record](docs/assignment2-part2-stage2.md) documents this
+stage. The [Gemini controller](backend/controllers/gemini.py) contains the
+selected model and backend-only requests; the key stays in the ignored `.env`.
+
+I supplied the assignment description and asked for a plan that started with
+the foundation and validated one step at a time:
+
+```text
+[assignment description and requirements]
+store these in docs for assignment 2 part 2.
+identify dependencies and the foundation to build upon. what needs to be true and verified first before we can begin building, and what are the next steps from there? you must utilize best software engineering principles, keep it simple, and build and validate one step at a time. propose your detailed plan, separated by turn with human-in-the-loop checkpoints at each step.
+```
+
+The bracketed line represents the assignment material supplied with the
+prompt. The resulting [requirements record](docs/assignment2-part2-revised.md),
+[preflight checks](docs/assignment2-part2-preflight.md), and
+[turn-by-turn plan](docs/assignment2-part2-plan.md) document the foundation,
+dependencies, validation, and checkpoints.
+
+I then specified the branch, popup design, staged integration, and prompt file:
+
+```text
+create and switch to `rag_integration` feature branch
+frontend considerations:
+needs to be a popup chat window in the bottom right corner, with a border that matches the color scheme
+llm responses must use streaming, and preserve the conversation as a scrollable chat interface.
+
+for api we will use a free gemini api
+do not implement rag right away, just show the working stubbed interface as stage one, then the connection with raw llm. then we will implement the rag functionality
+need the hotel-assistant.md system prompt stored in prompts/
+
+show me in chat what your final proposed turn by turn plan looks like
+```
+
+The [stub stage](docs/assignment2-part2-stage1.md) and
+[raw-model stage](docs/assignment2-part2-stage2.md) record the incremental
+approach before retrieval was connected. The final
+[chat popup](frontend/src/components/ChatPopup.vue) has the scrollable
+conversation, and [hotel-assistant.md](prompts/hotel-assistant.md) stores the
+versioned instructions. The final implementation validates the complete
+model recommendation before delivering checked answer text in chunks.
+
+During visual review, I asked to change “Chat with Gemini” to “Chat” and
+change the assistant bubble background from cream to off-white after the
+cream looked too butter yellow. These are my descriptions of the revisions,
+rather than verbatim prompt transcripts. The launcher is in the
+[chat popup](frontend/src/components/ChatPopup.vue), and the bubble and
+header colors are in [main.css](frontend/src/assets/main.css).
+
+Before finishing, I asked for a critical review:
+
+```text
+i need you to critically review the current implementation. is everything in place? does it match expectations? has everything been tested and is it working? is the handoff updated? the only thing remaining should be the report and the demo video recording. is that accurate?
+```
+
+The [readiness review](docs/assignment2-part2-stage6.md),
+[command transcript](docs/assignment2-part2-stage6-commands.txt), and
+[saved trace](docs/assignment2-part2-stage6-trace.txt) record the corrections
+and checks. The review did not simply assume the application was complete:
+it identified the grounding issues described below, and those were corrected
+and verified before the report and recording work.
 
 A failed approach was accepting free-form second-model prose. A live review
 found correct two-night totals with an incorrect nightly date. Another
