@@ -5,8 +5,7 @@
 Assignment 2.2 adds **question → LLM-proposed SQL → validated read-only local
 retrieval → second LLM request with the original question and retrieved
 records → grounded, actionable answer in Vue**. The local-storage foundation
-is working, and the frozen Part 1 name/ZIP/list/map behavior remains covered
-by regression and browser checks. The [revised brief](docs/assignment2-part2-revised.md)
+is working and provides the saved records used by the chatbot. The [revised brief](docs/assignment2-part2-revised.md)
 and [supplied tutorial](docs/assignment2-part2-instructor-chatbot-notes.txt)
 define the scope. SQLite is sufficient; no vector database was added.
 
@@ -50,7 +49,7 @@ while deciding how I wanted the chatbot on my website to look and behave.
 I've seen websites before where the chatbot is always open in the corner
 and in the way. I don't like that pattern because it clogs up the interface
 and makes it harder to see the actual webpage content when I don't need to
-use the chatbot. I feel that it increases cognitive load because there is
+use the chatbot. I feel that it increases cognitive load, because there is
 another panel competing for my attention. I wanted to make sure my website
 didn't have that problem, so the chat stays closed until the user chooses
 to open it.
@@ -72,8 +71,7 @@ than something that a still screenshot can demonstrate.
 
 The green chat interface in [Intercom's Exemplary Bank demonstration](https://www.intercom.com/blog/videos/new-at-intercom-full/)
 is closer to the final design I wanted. The demo uses a green header and
-accent colors that complement the surrounding website. Exemplary Bank is a
-demonstration brand, not a bank website that I tested.
+accent colors that complement the surrounding website.
 
 I think this chatbot UI looks sleek and professional. It uses brand colors
 and feels like part of the website instead of a separate box added on top.
@@ -136,8 +134,7 @@ The default simulated nights are October 10–14, 2026, at 10000 cents with
 20 rooms. Geoapify supplies identities and locations, not these rates or
 vacancies. The fixed demonstration data overrides those defaults and is
 explicitly labeled synthetic. The original hotel/trip/account/booking tables
-remain separate. No course CSV or Part 1 provider/map controller was changed
-for the readiness repair.
+remain separate from the saved-hotel records used by the chatbot.
 
 The dependency direction is Vue View → FastAPI routes → framework-free
 Controllers → Models/SQLite. Routes handle HTTP and validation; controllers
@@ -148,7 +145,7 @@ message and retrieval-stage tables through an additive migration.
 ## Implemented two-call workflow
 
 The first request sends the question, trusted ZIP/dates, relevant schema and
-query rules to **Gemini 3.5 Flash-Lite** (`gemini-3.5-flash-lite`).
+query rules to Gemini 3.5 Flash-Lite.
 The model proposes one parameterized SELECT returning candidate hotel IDs.
 The backend requires exact ZIP/date bindings, approved saved-hotel tables,
 one statement, and a bounded query. A separate SQLite `mode=ro` connection,
@@ -173,9 +170,7 @@ The [prompt](prompts/hotel-assistant.md), [retrieval controller](backend/control
 [orchestrator](backend/controllers/rag_chat.py) implement this contract.
 SQLite stores question, proposal, attempted execution, checked result,
 second-model selection, answer validation, answer, errors and timestamps.
-The [read-only trace CLI](backend/inspect_rag_demo.py) makes these stages
-reviewable in a recording. The frontend stores only an opaque conversation
-ID. Edit question, Retry reply, Enter, Shift+Enter and Escape are implemented.
+The [read-only trace CLI](backend/inspect_rag_demo.py) makes these stages.
 
 ## Traced live demonstration — October 8, 2026
 
@@ -259,8 +254,6 @@ When the user asks “Compare saved hotels near ZIP 16803 from 2026-10-11 to
   zero rooms on October 11.
 - Observed: The answer showed Campus at $230 and Valley at $270, with the
   correct nightly dates, prices, room counts, and simulated-data label.
-- Evidence: Successful live Gemini calls over the synthetic fixture. The
-  question, proposed query, retrieved rows, and answer are shown above.
 
 ### Test 2: No hotel matches the requested budget
 
@@ -271,7 +264,6 @@ $50 a night:
   hotels are saved for this ZIP.
 - Observed: The model selected no hotels and the interface gave a no-match
   explanation. The retrieval trace still showed three saved hotels.
-- Evidence: Successful live Gemini calls over the synthetic fixture.
 
 ### Test 3: Requested nightly data is missing
 
@@ -281,7 +273,6 @@ When the user asks for hotels near ZIP 16803 on October 15:
   the sample has no nightly records for that date.
 - Observed: The query found three hotel candidates, but all three lacked the
   requested night. The answer said availability could not be verified.
-- Evidence: Successful live Gemini calls over the synthetic fixture.
 
 ### Test 4: No hotel is saved for the ZIP
 
@@ -290,7 +281,6 @@ When the user asks for hotels near ZIP 16804:
 - Expected: No hotel is recommended or invented.
 - Observed: The saved-hotel count and candidate count were zero, and the
   answer explained that no hotel was saved for this ZIP.
-- Evidence: Successful live Gemini calls over the synthetic fixture.
 
 ### Test 5: A disallowed query is proposed
 
@@ -300,10 +290,8 @@ When the labeled failure mock proposes an UPDATE query:
   and no successful assistant answer is saved.
 - Observed: The interface showed the rejection. The temporary-database
   tests confirmed unchanged hotel, ZIP, and nightly-row counts.
-- Evidence: Deliberately mocked model proposal and synthetic test databases,
-  not a live model asked to change records. The query and proof are below.
 
-### Reproducing the fixed-sample checks
+## Reproducing the fixed-sample checks
 
 Reproducing these checks means loading the same JSON sample into a fresh
 SQLite database, asking the same questions, and comparing the checked
@@ -355,38 +343,54 @@ They do not return the JSON sample or consume live model quota. The
 explicitly mocked browser failures and compare preserved rows. Stop only the
 servers started for these checks when finished.
 
-### Additional October 8 checks
+## Additional Part 2 verification
 
-The following checks were also recorded during the October 8 readiness work.
-Live Gemini used synthetic saved hotels; Geoapify used actual place data.
-Deliberate failure cases used the explicitly labeled mock harness or
-temporary databases.
+### Test 6: Save, duplicate, and remove a local hotel
 
-| Case / evidence type | Expected | Observed |
-| --- | --- | --- |
-| Two-night comparison / live Gemini | Correct dated rates and totals; zero-room exclusion | Campus $230, Valley $270; all October 11–12 rows agreed with SQLite |
-| Under $50 on October 11 / live Gemini | No qualifying recommendation without claiming no saved hotels | Empty model selection; correct no-match explanation; `saved_hotel_count=3` |
-| October 15 / live Gemini | Missing nightly records imply unknown availability | Three candidates, three incomplete, no matches; availability cannot be verified |
-| ZIP 16804 / live Gemini | No invented hotels | Saved count and candidates zero; no hotel saved explanation |
-| Narrowed under-$50 SQL / MOCK filtered | Zero candidates can coexist with saved hotels | Candidate count 0, saved count 3; correct no-match answer |
-| Add/duplicate/remove / browser + local API | Persist hotel and five default nights; duplicate unchanged; remove cascades | Scholar saved from 21 Geoapify places; duplicate left one identical saved row; Remove deleted its ZIP and nights |
-| Restart both servers and reload / browser | Saved hotel and chat history persist; ZIP lookup uses local rows | Same saved Scholar and messages restored; saved ZIP lookup needed no provider call |
-| Map/list + keyboard / browser | Selection stays synchronized | Scholar card selected pin; Enter on Nittany marker selected its card; Escape restored chat launcher focus |
-| Missing context / browser | Editable error and no successful assistant message | Edit question restored draft; Shift+Enter added newline; Enter submitted |
-| Rejected UPDATE / MOCK and tests | No hotel mutation or successful answer | Safe rejection; fixture rows/counts preserved, no assistant message or retrieval result |
-| Quota / MOCK rate-limit | Useful retry error without fabricated answer | Safe rate-limit message and Retry control |
-| Unsupported answer / MOCK bad-answer | Reject invented prose, including wrong date | No successful assistant or unchecked delta; Retry failed safely while mock remained invalid |
-| Part 1 / browser | Harbor one hotel/two stays; blank/no-results states | All three observed; ZIP 16802 returned 21 places at a 5 km radius |
-| ZIP error states / MOCK | Preserve 00501; distinguish empty/unresolved/provider error | All displayed the expected distinct state |
-| Narrow popup / browser | Composer and panel fit without horizontal overflow | Measured 520px viewport, page width 520px; panel/composer inside bounds |
-| Regression | Existing and new checks pass | 164 backend, 26 frontend; Oxlint, ESLint and production build passed |
-| Browser logs and database integrity | No application errors or broken references | Both browser warning/error logs empty; all inspected databases had zero foreign-key violations |
+- Expected: Saving a hotel creates one saved record and five simulated
+  nights. Saving it again preserves those records. Removing it deletes its
+  ZIP associations and nights.
+- Observed: Scholar was saved with the default nights. A duplicate save kept
+  one identical hotel record. Remove from Local deleted its ZIP links and nights.
+
+### Test 7: Persisted hotels and conversation history
+
+- Expected: Saved hotels and chat messages remain after restarting the
+  servers and reloading the page. Saved ZIP lookup uses local records.
+- Observed: The saved Scholar hotel and conversation returned after restart
+  and reload, and the saved ZIP lookup did not need a provider call.
+
+### Test 8: Chat controls and narrow layout
+
+- Expected: Missing context gives an editable error; Enter sends,
+  Shift+Enter adds a line, and Escape closes chat and restores launcher focus.
+  The popup and composer fit a narrow screen.
+- Observed: Edit question restored the draft, Enter submitted it, Shift+Enter
+  added a newline, and Escape returned focus to the launcher. At a 520px
+  viewport, the page width was 520px and the panel and composer stayed inside it.
+
+### Test 9: Mocked quota and unsupported-answer failures
+
+- Expected: The labeled rate-limit mock shows a useful retry error. The
+  bad-answer mock rejects unsupported prose without displaying or saving a
+  successful answer.
+- Observed: The rate-limit message and Retry control appeared. The invalid
+  answer produced no successful assistant message or unchecked response text;
+  retrying while the mock remained invalid failed safely.
+
+### Test 10: Automated checks and integrity
+
+- Expected: Backend and frontend checks pass, the browser reports no
+  application errors, and database relationships remain valid.
+- Observed: The October 8 checks passed 164 backend tests, 26 frontend tests,
+  Oxlint, ESLint, and the production build. Both browser warning/error logs
+  were empty, and inspected databases had no foreign-key violations.
 
 ![Budget no-match with saved hotels](docs/test-screenshots/part2-oct8-budget-no-match.png)
 
 ![Missing nightly data](docs/test-screenshots/part2-oct8-missing-night.png)
 
-### Rejected SQL proof
+## Rejected SQL proof
 
 **Evidence label: deliberately mocked proposal and synthetic temporary
 database; no live model was asked to issue a destructive query.**
@@ -407,16 +411,13 @@ Two pre-existing dependency deprecation warnings remain.
 
 ## AI disclosure, limitations and recording
 
-I used **Codex with GPT-6.1 Sol** for Assignment 2.2, including implementation,
-review, tests, browser checks, and report updates. The runtime chatbot uses
-**Gemini 3.5 Flash-Lite** (`gemini-3.5-flash-lite`) for its two model requests.
-That is the model used by the application, separate from the model I used
-in Codex.
+I used GPT-6.1 Sol for Assignment 2.2, including implementation,
+review, tests, browser checks, and report updates. The in-site chatbot uses
+Gemini 3.5 Flash-Lite for its two model requests.
 
 ### Assignment 2.2 sample prompts and evidence log
 
-These are sample prompts I used to direct the work. The earlier Part 1
-prompt log below is historical and is separate from Assignment 2.2.
+These are sample prompts I used to direct the Assignment 2.2 work.
 
 I asked for help getting the Gemini API set up and choosing the runtime model:
 
@@ -502,105 +503,12 @@ same-context follow-ups; other forms may need clarification. Up to 50 SQL
 candidates and ten checked stays are considered for the second request.
 The model still interprets natural-language preferences within this bounded
 contract. No exhaustive hotel inventory, every provider failure, full browser
-process restart, or instructor access to a future recording was established.
+process restart, or instructor access to the recording was established.
 
-**Part 2 video: TODO — record the sequence in the
-[recording guide](docs/assignment2-part2-demo.md), add a link viewable by the
-instructor without requesting access, review this report, and upload it.**
-The earlier Part 1 video below does not satisfy the Part 2 requirement.
-The recording must show question, proposal, records, second-model selection,
-displayed answer, expected-versus-observed checks, no-match/missing data,
-rejected SQL, and persistence. Screenshots and a recording plan do not
-establish that this video exists.
+### Part 2 screen-recorded demo video
 
-## Earlier Part 1 research notes and evidence
+- [Watch the Expedia Lite A2.2 demo on Google Drive](https://drive.google.com/file/d/1J4udpc61lYgkqU2g-jq0wY48eyfSOIYj/view?usp=drive_link).
+- [Expedia Lite A2.2 Demo.mov](<Expedia Lite A2.2 Demo.mov>) — local copy in the project root.
 
-I looked at [Trivago](https://www.trivago.com/), [Expedia](https://www.expedia.com/Hotels), and [Booking.com](https://www.booking.com/). My [Trivago screenshot](docs/mockups/assignment-1/trivago.png) shows the idea I liked most: hotel cards on the left and a map on the right. I also liked seeing a picture next to each hotel name.
-
-The Trivago screen felt clunky and overcrowded to me. Not all the hotel names appeared on screen, and the prices on the map jumped up and down, which was distracting and confusing. I kept the cards-left/map-right idea but made the cards simpler and easier to read.
-
-I also consulted the [Geoapify geocoding](https://apidocs.geoapify.com/docs/geocoding/) and [Places](https://apidocs.geoapify.com/docs/places/) documentation and the [Leaflet quick start](https://leafletjs.com/examples/quick-start/) while building the ZIP search and map.
-
-## Early mockup
-
-![Early left-list/right-map mockup](/Users/jlee/Desktop/psu4/ist402/a1_expedia_lite/docs/mockups/a2.1-mockups.png)
-
-The [mockup](docs/mockups/a2.1-mockups.png) was drawn before implementation. It shows hotel cards on the left and pins on the right, with a name callout. The final interface adds ZIP search and linked selection. I tried an indigo color, did not like it, then liked the [green preview](docs/mockups/assignment-1/green-brand-preview.jpg) and used green instead. A separate [layout sketch](docs/assignment2-part1-mockup.svg) was drawn during implementation.
-
-I also tried putting a picture on the left side of each card, like the Trivago example. Most Geoapify results did not have an image, so I dropped that idea rather than showing an ugly placeholder icon.
-
-## Earlier Part 1 screen-recorded demo video
-
-[Expedia Lite A2.1 Demo.mov](<Expedia Lite A2.1 Demo.mov>)
-You can also access it [here](https://drive.google.com/file/d/1APcj5KUJjuMnFSSOqp4xS9IsRatzvbxZ/view?usp=drive_link).
-
-## Earlier Part 1 verification record
-
-On September 29, 2026, the automated checks passed: **118 backend tests** and **16 frontend tests**. The live ZIP searches below were observed on September 29, 2026.
-
-Test 1: When the user searches ZIP `16802`:
-
-- Expected: The app shows hotel results near State College, PA, in the list and on the map.
-- Actual: The app resolved `16802` to State College and displayed 21 places, including the Nittany Lion Inn and the Penn Stater, with matching map markers.
-
-Test 2: When the user searches ZIP `17042`:
-
-- Expected: The app shows hotel results in the Lebanon, PA, area.
-- Actual: The app resolved `17042` to North Cornwall Township and displayed two places: Days Inn - Lebanon / Hershey in Lebanon and Fairfield Inn & Suites in North Cornwall Township.
-
-Test 3: When the user clicks the hotel card for the Nittany Lion Inn:
-
-- Expected: Its associated map marker is highlighted.
-- Actual: The card and its matching marker both showed the selected state after the card was clicked.
-
-Test 4: When the user clicks the map marker for the Penn Stater:
-
-- Expected: The associated hotel card is selected.
-- Actual: Activating the marker with the keyboard selected and scrolled to the Penn Stater card.
-
-Test 5: When the user submits ZIP `000000`:
-
-- Expected: The app shows an error about the ZIP code instead of running a hotel search.
-- Actual: The app showed “Enter exactly five digits for a U.S. ZIP code.” No hotel results appeared.
-
-Test 6: When the user enters letters such as `abcde` for the ZIP code and submits the form:
-
-- Expected: The interface does not accept letters as a valid ZIP code.
-- Actual: The form rejects letters on submission with “Enter exactly five digits for a U.S. ZIP code.”
-
-## Earlier Part 1 AI disclosure and evidence log
-
-I used **Codex with GPT-6 Sol** for the implementation, visual previews, and verification. These prompt excerpts show how I directed the work.
-
-The setup prompt led to the [Geoapify controller](backend/controllers/places.py) and [ZIP request code](frontend/src/api/locations.js):
-
-```vbnet
-identify key dependencies and initial setup for PART 1 of assignment 2. Must be able to look up by zip code and find hotels in that area.
-develop a step by step plan to get the dependencies setup, following best swe principles and finding the minimal solution.
-```
-
-The selection prompt shaped the [list](frontend/src/components/NearbyHotelsPanel.vue) and [map](frontend/src/components/NearbyHotelsMap.vue):
-
-```vbnet
-currently clicking a hotel on the left side selects the pin on the right. next step, we need the opposite to be true as well. clicking the pin on the right should select the hotel on the left
-```
-
-The hover prompt added the name callout in the [map component](frontend/src/components/NearbyHotelsMap.vue):
-
-```css
-on the map, when i hover over a pin, it should have a callout directly above the pin showing the name of the hotel
-```
-
-I annotated the left side of the card and asked for pictures, then revised that approach when most results had no image. The [cards](frontend/src/components/NearbyHotelsPanel.vue) no longer depend on hotel pictures:
-
-```sql
-add the pull for the hotel image and display it on the left side of the card, with text on the right, for each card.
-implement only the backend first. once thats been validated then add the frontend
-```
-
-This indigo prompt changed [main.css](frontend/src/assets/main.css). I disliked the result, previewed green, and chose green instead:
-
-```css
-this is now the brand color of the app. change the main headings (e.g., "Choose a hotel stay", "Hotels near ZIP #####", etc), icon, pill background colors
-background of the hotel icons should be a lighter version of this
-```
+TODO: Confirm the instructor can access the Drive recording without requesting
+access, review this report, and upload it.
