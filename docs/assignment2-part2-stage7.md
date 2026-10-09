@@ -143,8 +143,17 @@ git add with explicit paths for the repair files listed above;
 git diff --cached --check && git diff --cached --stat;
 git commit -m "Support ZIP-only hotel chat and clarify missing dates";
 git rev-parse HEAD; sed -n '1,24p' report.md; sed -n '1,28p' handoffs/current.md.
-The subsequent documentation commit updates only the assessed-commit line,
-handoff follow-up and this record; it preserves existing report prose.
+Application checkpoint: 2eae4985184dce0c8924e0791b94fa3fed5a23de.
+Documentation checkpoint: 0c64799. It preserves the concurrently edited
+student report as its current snapshot, updates the assessed source pointer,
+adds a version-6 verification paragraph and refreshes the handoff. Concurrent
+student report prose was not rewritten by this repair.
+Documentation commands: cat handoffs/current.md;
+rg -n 'version|prompt' report.md; git diff --check && git diff --stat &&
+git status --short && git diff 2eae498 HEAD -- backend frontend prompts data;
+git add -- report.md handoffs/current.md; git diff --cached --check &&
+git diff --cached --stat; git commit -m "Update report and handoff for clarified hotel chat";
+git status --short && git log -2 --oneline && git diff 2eae498 HEAD -- backend frontend prompts data.
 
 This is saved-local hotel identity lookup, not automatic discovery of every
 hotel near a ZIP. Dates remain required for simulated prices and availability.
