@@ -11,7 +11,9 @@ import {
 import { searchHotels } from '../src/api/hotels.js'
 import { ApiError } from '../src/api/http.js'
 import { getNearbyHotels, getZipLocation, isValidUsZipCode } from '../src/api/locations.js'
+import { getSavedHotels, removeHotel, saveHotel } from '../src/api/savedHotels.js'
 import { getAccountBookings } from '../src/api/users.js'
+import { searchZipLocalFirst } from '../src/api/zipSearch.js'
 
 async function withFetch(stub, action) {
   const originalFetch = globalThis.fetch
@@ -84,6 +86,102 @@ test('getNearbyHotels requests the ZIP search through the backend proxy', async 
     return jsonResponse(expected)
   }, () => getNearbyHotels('00501'))
   assert.deepEqual(actual, expected)
+})
+
+test('local-first ZIP lookup uses saved results without calling the provider route', async () => {
+  const calls = []
+  const result = await withFetch(async (url) => {
+    calls.push(url)
+    return jsonResponse({
+      center: { postcode: '16802', latitude: 40.8, longitude: -77.8 },
+      hotels: [{ place_id: 'provider:1', nights: [] }],
+      saved_place_ids: ['provider:1'],
+    })
+  }, () => searchZipLocalFirst('16802'))
+  assert.deepEqual(calls, ['/api/saved-hotels?postcode=16802'])
+  assert.equal(result.source, 'local')
+  assert.deepEqual(result.savedPlaceIds, ['provider:1'])
+  assert.deepEqual(result.zipSavedPlaceIds, ['provider:1'])
+})
+
+test('local-first ZIP lookup calls the provider only after an empty local success', async () => {
+  const calls = []
+  const result = await withFetch(async (url) => {
+    calls.push(url)
+    if (calls.length === 1) {
+      return jsonResponse({ center: null, hotels: [], saved_place_ids: ['provider:elsewhere'] })
+    }
+    return jsonResponse({
+      center: { postcode: '16802' }, hotels: [{ place_id: 'provider:elsewhere' }],
+      result_limit: 50,
+    })
+  }, () => searchZipLocalFirst('16802'))
+  assert.deepEqual(calls, [
+    '/api/saved-hotels?postcode=16802', '/api/hotels/nearby?postcode=16802',
+  ])
+  assert.equal(result.source, 'api')
+  assert.deepEqual(result.savedPlaceIds, ['provider:elsewhere'])
+  assert.deepEqual(result.zipSavedPlaceIds, [])
+})
+
+test('a repeated local ZIP lookup returns newly committed nightly values', async () => {
+  let roomsAvailable = 20
+  const calls = []
+  await withFetch(async (url) => {
+    calls.push(url)
+    return jsonResponse({
+      center: { postcode: '16802' },
+      hotels: [{
+        place_id: 'provider:1',
+        nights: [{ stay_date: '2026-10-11', nightly_rate_cents: 10000,
+          rooms_available: roomsAvailable }],
+      }],
+      saved_place_ids: ['provider:1'],
+    })
+  }, async () => {
+    assert.equal((await searchZipLocalFirst('16802')).hotels[0].nights[0].rooms_available, 20)
+    roomsAvailable = 3
+    assert.equal((await searchZipLocalFirst('16802')).hotels[0].nights[0].rooms_available, 3)
+  })
+  assert.deepEqual(calls, [
+    '/api/saved-hotels?postcode=16802', '/api/saved-hotels?postcode=16802',
+  ])
+})
+
+test('local lookup failure does not call the provider', async () => {
+  const calls = []
+  await assert.rejects(withFetch(async (url) => {
+    calls.push(url)
+    return jsonResponse({ detail: 'Saved hotels could not be loaded.' }, { status: 500 })
+  }, () => searchZipLocalFirst('16802')))
+  assert.deepEqual(calls, ['/api/saved-hotels?postcode=16802'])
+})
+
+test('saved hotel requests preserve provider ID and ZIP context', async () => {
+  const hotel = {
+    place_id: 'provider:ABC/1', name: null, address: null,
+    latitude: 40.8, longitude: -77.8,
+  }
+  const center = {
+    postcode: '16802', country_code: 'us', latitude: 40.81,
+    longitude: -77.81, locality: null,
+  }
+  await withFetch(async (url, options) => {
+    assert.equal(url, '/api/saved-hotels')
+    assert.equal(options.method, 'POST')
+    assert.deepEqual(JSON.parse(options.body), { hotel, center })
+    return jsonResponse({ place_id: hotel.place_id })
+  }, () => saveHotel(hotel, center))
+  await withFetch(async (url, options) => {
+    assert.equal(url, '/api/saved-hotels?postcode=16802')
+    assert.deepEqual(options, {})
+    return jsonResponse({ center: null, hotels: [], saved_place_ids: [] })
+  }, () => getSavedHotels('16802'))
+  await withFetch(async (url, options) => {
+    assert.equal(url, '/api/saved-hotels/provider%3AABC%2F1')
+    assert.deepEqual(options, { method: 'DELETE' })
+    return new Response(null, { status: 204 })
+  }, () => removeHotel(hotel.place_id))
 })
 
 test('ZIP validation accepts only five ASCII digits, including leading zeroes', () => {

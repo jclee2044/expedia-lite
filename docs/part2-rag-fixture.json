@@ -1,0 +1,41 @@
+{
+  "label": "Synthetic Assignment 2 Part 2 classroom fixture; no provider rates or availability",
+  "postcode": "16803",
+  "country_code": "us",
+  "latitude": 40.0,
+  "longitude": -77.0,
+  "locality": "State College",
+  "hotels": [
+    {
+      "hotel_id": "fixture:budget",
+      "name": "Nittany Budget",
+      "nights": [
+        {"stay_date": "2026-10-11", "nightly_rate_cents": 10000, "rooms_available": 0},
+        {"stay_date": "2026-10-12", "nightly_rate_cents": 9000, "rooms_available": 2}
+      ]
+    },
+    {
+      "hotel_id": "fixture:campus",
+      "name": "Campus Lantern",
+      "nights": [
+        {"stay_date": "2026-10-11", "nightly_rate_cents": 12000, "rooms_available": 2},
+        {"stay_date": "2026-10-12", "nightly_rate_cents": 11000, "rooms_available": 2}
+      ]
+    },
+    {
+      "hotel_id": "fixture:valley",
+      "name": "Valley Ridge",
+      "nights": [
+        {"stay_date": "2026-10-11", "nightly_rate_cents": 13000, "rooms_available": 2},
+        {"stay_date": "2026-10-12", "nightly_rate_cents": 14000, "rooms_available": 2}
+      ]
+    }
+  ],
+  "expected": {
+    "2026-10-11": ["Campus Lantern:12000", "Valley Ridge:13000"],
+    "2026-10-12": ["Nittany Budget:9000", "Campus Lantern:11000", "Valley Ridge:14000"],
+    "2026-10-11_to_2026-10-13": ["Campus Lantern:23000", "Valley Ridge:27000"],
+    "16804_2026-10-12": [],
+    "16803_2026-10-15": []
+  }
+}

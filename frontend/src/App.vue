@@ -5,11 +5,14 @@ import { createAccount, getCurrentAccount, login, logout } from './api/accounts.
 import { createBooking, deleteBooking, updateBookingStatus } from './api/bookings.js'
 import { searchHotels } from './api/hotels.js'
 import { ApiError } from './api/http.js'
-import { getNearbyHotels, isValidUsZipCode } from './api/locations.js'
+import { isValidUsZipCode } from './api/locations.js'
+import { removeHotel, saveHotel } from './api/savedHotels.js'
 import { getAccountBookings } from './api/users.js'
+import { searchZipLocalFirst } from './api/zipSearch.js'
 import AccountPanel from './components/AccountPanel.vue'
 import BookingConfirmation from './components/BookingConfirmation.vue'
 import BookingHistory from './components/BookingHistory.vue'
+import ChatPopup from './components/ChatPopup.vue'
 import NearbyHotelsPanel from './components/NearbyHotelsPanel.vue'
 import StayCard from './components/StayCard.vue'
 import ZipLookupPanel from './components/ZipLookupPanel.vue'
@@ -43,6 +46,13 @@ const nearbyHotels = ref([])
 const zipHasSearched = ref(false)
 const selectedPlaceId = ref(null)
 const nearbyResultLimit = ref(50)
+const zipSource = ref('api')
+const activePostcode = ref('')
+const savedPlaceIds = ref([])
+const zipSavedPlaceIds = ref([])
+const mutatingPlaceId = ref('')
+const zipActionMessage = ref('')
+const zipActionError = ref('')
 
 const resultSummary = computed(() => {
   const hotelNoun = hotelCount.value === 1 ? 'hotel' : 'hotels'
@@ -268,6 +278,22 @@ function clearZipResult() {
   nearbyHotels.value = []
   zipHasSearched.value = false
   selectedPlaceId.value = null
+  activePostcode.value = ''
+  savedPlaceIds.value = []
+  zipSavedPlaceIds.value = []
+  zipActionMessage.value = ''
+  zipActionError.value = ''
+}
+
+function applyZipSearch(search, postcode) {
+  zipLocation.value = search.center
+  nearbyHotels.value = search.hotels
+  nearbyResultLimit.value = search.resultLimit
+  savedPlaceIds.value = search.savedPlaceIds
+  zipSavedPlaceIds.value = search.zipSavedPlaceIds
+  zipSource.value = search.source
+  activePostcode.value = postcode
+  zipHasSearched.value = true
 }
 
 async function lookupZip(postcode) {
@@ -280,15 +306,76 @@ async function lookupZip(postcode) {
   isZipLoading.value = true
 
   try {
-    const search = await getNearbyHotels(postcode)
-    zipLocation.value = search.center
-    nearbyHotels.value = search.hotels
-    nearbyResultLimit.value = search.result_limit
-    zipHasSearched.value = true
+    applyZipSearch(await searchZipLocalFirst(postcode), postcode)
   } catch (error) {
-    zipError.value = error instanceof Error ? error.message : 'ZIP lookup failed.'
+    zipError.value = error instanceof ApiError ? error.message : 'ZIP lookup is unavailable. Please try again.'
   } finally {
     isZipLoading.value = false
+  }
+}
+
+async function addNearbyHotel(hotel) {
+  if (!zipLocation.value || zipSavedPlaceIds.value.includes(hotel.place_id) || mutatingPlaceId.value) return
+  const postcode = activePostcode.value
+  const center = zipLocation.value
+  mutatingPlaceId.value = hotel.place_id
+  zipActionMessage.value = ''
+  zipActionError.value = ''
+  try {
+    await saveHotel(hotel, center)
+    if (activePostcode.value !== postcode) return
+    if (!savedPlaceIds.value.includes(hotel.place_id)) {
+      savedPlaceIds.value = [...savedPlaceIds.value, hotel.place_id]
+    }
+    zipSavedPlaceIds.value = [...zipSavedPlaceIds.value, hotel.place_id]
+    zipActionMessage.value = `${hotel.name || 'Hotel'} was saved locally.`
+    try {
+      const search = await searchZipLocalFirst(postcode)
+      if (activePostcode.value === postcode) {
+        applyZipSearch(search, postcode)
+        selectedPlaceId.value = hotel.place_id
+      }
+    } catch (error) {
+      zipActionError.value = error instanceof ApiError
+        ? `Saved, but local results could not be reloaded: ${error.message}`
+        : 'Saved, but local results could not be reloaded. Search again to retry.'
+    }
+  } catch (error) {
+    zipActionError.value = error instanceof ApiError
+      ? error.message : 'Could not reach local storage. Please try again.'
+  } finally {
+    mutatingPlaceId.value = ''
+  }
+}
+
+async function removeNearbyHotel(hotel) {
+  if (!zipSavedPlaceIds.value.includes(hotel.place_id) || mutatingPlaceId.value) return
+  mutatingPlaceId.value = hotel.place_id
+  zipActionMessage.value = ''
+  zipActionError.value = ''
+  try {
+    await removeHotel(hotel.place_id)
+    savedPlaceIds.value = savedPlaceIds.value.filter((id) => id !== hotel.place_id)
+    zipSavedPlaceIds.value = zipSavedPlaceIds.value.filter((id) => id !== hotel.place_id)
+    zipActionMessage.value = `${hotel.name || 'Hotel'} was removed from local storage.`
+    if (zipSource.value === 'local') {
+      nearbyHotels.value = nearbyHotels.value.filter((item) => item.place_id !== hotel.place_id)
+      if (selectedPlaceId.value === hotel.place_id) selectedPlaceId.value = null
+      if (!nearbyHotels.value.length) {
+        try {
+          applyZipSearch(await searchZipLocalFirst(activePostcode.value), activePostcode.value)
+        } catch (error) {
+          zipHasSearched.value = false
+          zipError.value = error instanceof ApiError
+            ? error.message : 'ZIP lookup is unavailable. Please try again.'
+        }
+      }
+    }
+  } catch (error) {
+    zipActionError.value = error instanceof ApiError
+      ? error.message : 'Could not reach local storage. Please try again.'
+  } finally {
+    mutatingPlaceId.value = ''
   }
 }
 
@@ -412,7 +499,15 @@ onMounted(restoreSession)
           :hotels="nearbyHotels"
           :result-limit="nearbyResultLimit"
           :selected-place-id="selectedPlaceId"
+          :source="zipSource"
+          :saved-place-ids="savedPlaceIds"
+          :zip-saved-place-ids="zipSavedPlaceIds"
+          :mutating-place-id="mutatingPlaceId"
+          :action-message="zipActionMessage"
+          :action-error="zipActionError"
           @select="selectedPlaceId = $event"
+          @add="addNearbyHotel"
+          @remove="removeNearbyHotel"
         />
 
         <section
@@ -518,6 +613,8 @@ onMounted(restoreSession)
         />
       </template>
     </main>
+
+    <ChatPopup />
 
     <footer class="site-footer">
       <div class="footer-main">

@@ -1,6 +1,12 @@
 [Assignment 2] Overview: Hotel Discovery with Public APIs
 ← Return to Module IV — Building and Verifying a Full-Stack Application
 
+**Part 2 update (October 1, 2026):** The Part 2 shortlist-only scope and
+October 6 deadline below are historical. The [revised Part 2 brief](assignment2-part2-revised.md)
+requires a RAG chatbot on top of the local-storage foundation and moves the
+deadline to October 8, 2026, 11:59 PM Eastern. See the
+[turn-by-turn plan](assignment2-part2-plan.md).
+
 1. Objective
 Assignment 2 extends the existing hotel application from supplied local records to information obtained through a public API. A traveler enters a U.S. ZIP code, explores nearby hotels in a synchronized list and map, and saves selected places to a persistent shortlist.
 

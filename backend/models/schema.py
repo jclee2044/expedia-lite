@@ -1,6 +1,43 @@
 """SQLite representation of Expedia Lite models and relationships."""
 
-SCHEMA_VERSION = "4"
+SCHEMA_VERSION = "7"
+
+CHAT_TABLES_SQL = """
+CREATE TABLE IF NOT EXISTS chat_conversations (
+    conversation_id TEXT PRIMARY KEY,
+    created_at_utc TEXT NOT NULL,
+    updated_at_utc TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    message_id INTEGER PRIMARY KEY,
+    conversation_id TEXT NOT NULL,
+    turn_id TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+    content TEXT NOT NULL CHECK (length(trim(content)) > 0),
+    created_at_utc TEXT NOT NULL,
+    FOREIGN KEY (conversation_id) REFERENCES chat_conversations(conversation_id)
+        ON UPDATE RESTRICT ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS chat_messages_conversation_idx
+ON chat_messages (conversation_id, message_id);
+
+CREATE TABLE IF NOT EXISTS chat_retrieval_stages (
+    stage_id INTEGER PRIMARY KEY,
+    conversation_id TEXT NOT NULL,
+    turn_id TEXT NOT NULL,
+    stage TEXT NOT NULL CHECK (stage IN ('proposal', 'execution', 'result', 'error')),
+    detail_json TEXT NOT NULL,
+    prompt_version TEXT NOT NULL,
+    created_at_utc TEXT NOT NULL,
+    FOREIGN KEY (conversation_id) REFERENCES chat_conversations(conversation_id)
+        ON UPDATE RESTRICT ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS chat_retrieval_stages_conversation_idx
+ON chat_retrieval_stages (conversation_id, stage_id);
+"""
 
 USERS_TABLE_SQL = """
 CREATE TABLE users (
@@ -31,6 +68,48 @@ CREATE TABLE search_history (
 
 CREATE INDEX search_history_user_time_idx
 ON search_history (user_id, searched_at_utc);
+"""
+
+SAVED_HOTELS_TABLES_SQL = """
+CREATE TABLE IF NOT EXISTS saved_hotels (
+    hotel_id TEXT PRIMARY KEY NOT NULL CHECK (length(trim(hotel_id)) > 0),
+    name TEXT,
+    address TEXT,
+    latitude REAL NOT NULL CHECK (latitude BETWEEN -90 AND 90),
+    longitude REAL NOT NULL CHECK (longitude BETWEEN -180 AND 180)
+);
+
+CREATE TABLE IF NOT EXISTS demo_hotel_nights (
+    hotel_id TEXT NOT NULL,
+    stay_date TEXT NOT NULL CHECK (
+        length(stay_date) = 10
+        AND stay_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+        AND COALESCE(date(stay_date, '+0 days') = stay_date, 0)
+    ),
+    nightly_rate_cents INTEGER NOT NULL DEFAULT 10000
+        CHECK (typeof(nightly_rate_cents) = 'integer' AND nightly_rate_cents >= 0),
+    rooms_available INTEGER NOT NULL DEFAULT 20
+        CHECK (typeof(rooms_available) = 'integer' AND rooms_available >= 0),
+    PRIMARY KEY (hotel_id, stay_date),
+    FOREIGN KEY (hotel_id) REFERENCES saved_hotels(hotel_id)
+        ON UPDATE RESTRICT ON DELETE RESTRICT
+);
+"""
+
+SAVED_HOTEL_ZIPS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS saved_hotel_zips (
+    hotel_id TEXT NOT NULL,
+    postcode TEXT NOT NULL CHECK (
+        length(postcode) = 5 AND postcode GLOB '[0-9][0-9][0-9][0-9][0-9]'
+    ),
+    country_code TEXT NOT NULL CHECK (country_code = 'us'),
+    latitude REAL NOT NULL CHECK (latitude BETWEEN -90 AND 90),
+    longitude REAL NOT NULL CHECK (longitude BETWEEN -180 AND 180),
+    locality TEXT,
+    PRIMARY KEY (hotel_id, postcode),
+    FOREIGN KEY (hotel_id) REFERENCES saved_hotels(hotel_id)
+        ON UPDATE RESTRICT ON DELETE RESTRICT
+);
 """
 
 SCHEMA_SQL = """
@@ -106,4 +185,4 @@ CREATE TABLE IF NOT EXISTS id_counters (
     entity TEXT PRIMARY KEY,
     last_value INTEGER NOT NULL CHECK (last_value >= 0)
 );
-"""
+""" + SAVED_HOTELS_TABLES_SQL + SAVED_HOTEL_ZIPS_TABLE_SQL + CHAT_TABLES_SQL

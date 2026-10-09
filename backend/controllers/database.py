@@ -8,8 +8,11 @@ from pathlib import Path
 
 from backend.controllers.seed import seed_database
 from backend.models.schema import (
+    CHAT_TABLES_SQL,
     SCHEMA_SQL,
     SCHEMA_VERSION,
+    SAVED_HOTEL_ZIPS_TABLE_SQL,
+    SAVED_HOTELS_TABLES_SQL,
     SEARCH_HISTORY_TABLE_SQL,
     USERS_TABLE_SQL,
 )
@@ -104,7 +107,19 @@ def create_schema(connection: sqlite3.Connection) -> None:
 
     if version_row is not None and version_row["value"] == "3":
         _migrate_schema_v3_to_v4(connection)
-        return
+        version_row = {"value": "4"}
+
+    if version_row is not None and version_row["value"] == "4":
+        _migrate_schema_v4_to_v5(connection)
+        version_row = {"value": "5"}
+
+    if version_row is not None and version_row["value"] == "5":
+        _migrate_schema_v5_to_v6(connection)
+        version_row = {"value": "6"}
+
+    if version_row is not None and version_row["value"] == "6":
+        _migrate_schema_v6_to_v7(connection)
+        version_row = {"value": "7"}
 
     if version_row is not None and version_row["value"] != SCHEMA_VERSION:
         raise DatabaseVersionError(
@@ -237,10 +252,72 @@ def _migrate_schema_v3_to_v4(connection: sqlite3.Connection) -> None:
         )
         connection.execute(
             "UPDATE app_metadata SET value = ? WHERE key = 'schema_version'",
-            (SCHEMA_VERSION,),
+            ("4",),
         )
         violations = connection.execute("PRAGMA foreign_key_check").fetchall()
         if violations:
+            raise DatabaseVersionError(
+                "Schema migration would break existing database relationships."
+            )
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+
+
+def _migrate_schema_v4_to_v5(connection: sqlite3.Connection) -> None:
+    """Add provider hotel and fictional nightly inventory tables without data changes."""
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        for statement in SAVED_HOTELS_TABLES_SQL.split(";"):
+            if statement.strip():
+                connection.execute(statement)
+        connection.execute(
+            "UPDATE app_metadata SET value = ? WHERE key = 'schema_version'",
+            ("5",),
+        )
+        violations = connection.execute("PRAGMA foreign_key_check").fetchall()
+        if violations:
+            raise DatabaseVersionError(
+                "Schema migration would break existing database relationships."
+            )
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+
+
+def _migrate_schema_v5_to_v6(connection: sqlite3.Connection) -> None:
+    """Add ZIP associations without changing existing saved hotels or nights."""
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        connection.execute(SAVED_HOTEL_ZIPS_TABLE_SQL.strip())
+        connection.execute(
+            "UPDATE app_metadata SET value = ? WHERE key = 'schema_version'",
+            ("6",),
+        )
+        if connection.execute("PRAGMA foreign_key_check").fetchall():
+            raise DatabaseVersionError(
+                "Schema migration would break existing database relationships."
+            )
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+
+
+def _migrate_schema_v6_to_v7(connection: sqlite3.Connection) -> None:
+    """Add chat history and retrieval trace tables without changing hotel data."""
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        for statement in CHAT_TABLES_SQL.split(";"):
+            if statement.strip():
+                connection.execute(statement)
+        connection.execute(
+            "UPDATE app_metadata SET value = ? WHERE key = 'schema_version'",
+            (SCHEMA_VERSION,),
+        )
+        if connection.execute("PRAGMA foreign_key_check").fetchall():
             raise DatabaseVersionError(
                 "Schema migration would break existing database relationships."
             )

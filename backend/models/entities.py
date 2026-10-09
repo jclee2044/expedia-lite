@@ -156,6 +156,36 @@ class NearbyHotelSearch:
 
 
 @dataclass(frozen=True)
+class DemoHotelNight:
+    """Fictional classroom rate and room count for one saved hotel night."""
+
+    stay_date: str
+    nightly_rate_cents: int
+    rooms_available: int
+
+
+@dataclass(frozen=True)
+class SavedHotel:
+    """A provider hotel persisted locally with its demo nightly inventory."""
+
+    place_id: str
+    name: str | None
+    address: str | None
+    latitude: float
+    longitude: float
+    nights: list[DemoHotelNight]
+
+
+@dataclass(frozen=True)
+class SavedHotelSearch:
+    """ZIP-specific saved hotels plus provider IDs saved anywhere locally."""
+
+    center: PostcodeLocation | None
+    hotels: list[SavedHotel]
+    saved_place_ids: list[str]
+
+
+@dataclass(frozen=True)
 class BookingDetail:
     """A booking joined to its user, trip, and hotel for display."""
 

@@ -30,3 +30,16 @@ def test_geoapify_key_is_configured(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 
     assert config.get_geoapify_api_key() == "synthetic-test-value"
     assert config.geoapify_key_is_configured() is True
+
+
+def test_gemini_key_is_backend_only_and_blank_is_unconfigured(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_file = tmp_path / ".env"
+    monkeypatch.setattr(config, "ENV_FILE", env_file)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    env_file.write_text("GEMINI_API_KEY=synthetic-test-value\n", encoding="utf-8")
+    assert config.get_gemini_api_key() == "synthetic-test-value"
+    env_file.write_text("GEMINI_API_KEY=   \n", encoding="utf-8")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    assert config.get_gemini_api_key() is None

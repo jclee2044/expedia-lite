@@ -232,7 +232,7 @@ def test_schema_v1_migration_preserves_users_bookings_and_ids(tmp_path: Path) ->
         versions = dict(
             migrated.execute("SELECT key, value FROM app_metadata").fetchall()
         )
-        assert versions["schema_version"] == "4"
+        assert versions["schema_version"] == "7"
         assert migrated.execute(
             "SELECT quoted_nightly_rate_cents FROM bookings WHERE booking_id = 'B001'"
         ).fetchone()["quoted_nightly_rate_cents"] == 10000
@@ -293,7 +293,7 @@ def test_schema_v2_migration_adds_empty_history_and_preserves_data(
     try:
         assert migrated.execute(
             "SELECT value FROM app_metadata WHERE key = 'schema_version'"
-        ).fetchone()["value"] == "4"
+        ).fetchone()["value"] == "7"
         assert migrated.execute(
             "SELECT COUNT(*) FROM search_history"
         ).fetchone()[0] == 0
@@ -306,6 +306,126 @@ def test_schema_v2_migration_adds_empty_history_and_preserves_data(
         assert migrated.execute("PRAGMA foreign_key_check").fetchall() == []
     finally:
         migrated.close()
+
+
+def test_schema_v4_migration_adds_empty_tables_and_preserves_records(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "expedia.sqlite3"
+    initialize_database(database_path, DATA_DIRECTORY)
+    connection = connect_database(database_path)
+    try:
+        connection.execute("DROP TABLE demo_hotel_nights")
+        connection.execute("DROP TABLE saved_hotels")
+        connection.execute(
+            "UPDATE app_metadata SET value = '4' WHERE key = 'schema_version'"
+        )
+        connection.execute(
+            "UPDATE bookings SET status = 'cancelled' WHERE booking_id = 'B001'"
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    assert initialize_database(database_path, DATA_DIRECTORY) is False
+    assert initialize_database(database_path, DATA_DIRECTORY) is False
+
+    migrated = connect_database(database_path)
+    try:
+        assert migrated.execute(
+            "SELECT value FROM app_metadata WHERE key = 'schema_version'"
+        ).fetchone()["value"] == "7"
+        assert _counts(migrated) == {
+            "hotels": 8,
+            "trips": 12,
+            "users": 6,
+            "bookings": 6,
+        }
+        assert migrated.execute(
+            "SELECT status FROM bookings WHERE booking_id = 'B001'"
+        ).fetchone()["status"] == "cancelled"
+        assert migrated.execute("SELECT COUNT(*) FROM saved_hotels").fetchone()[0] == 0
+        assert migrated.execute("SELECT COUNT(*) FROM demo_hotel_nights").fetchone()[0] == 0
+        assert migrated.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        migrated.close()
+
+
+def test_saved_hotel_and_night_constraints(tmp_path: Path) -> None:
+    database_path = tmp_path / "expedia.sqlite3"
+    initialize_database(database_path, DATA_DIRECTORY)
+    connection = connect_database(database_path)
+    try:
+        provider_id = "provider:CaseSensitive/001"
+        connection.execute(
+            """
+            INSERT INTO saved_hotels (hotel_id, name, address, latitude, longitude)
+            VALUES (?, NULL, NULL, 40.8031678, -77.8613849)
+            """,
+            (provider_id,),
+        )
+        assert dict(connection.execute(
+            "SELECT * FROM saved_hotels WHERE hotel_id = ?", (provider_id,)
+        ).fetchone()) == {
+            "hotel_id": provider_id,
+            "name": None,
+            "address": None,
+            "latitude": 40.8031678,
+            "longitude": -77.8613849,
+        }
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                "INSERT INTO saved_hotels VALUES (?, NULL, NULL, 40, -77)",
+                (provider_id,),
+            )
+        for latitude, longitude in ((91, 0), (0, -181)):
+            with pytest.raises(sqlite3.IntegrityError):
+                connection.execute(
+                    "INSERT INTO saved_hotels VALUES (?, NULL, NULL, ?, ?)",
+                    (f"bad:{latitude}:{longitude}", latitude, longitude),
+                )
+
+        connection.execute(
+            "INSERT INTO demo_hotel_nights (hotel_id, stay_date) VALUES (?, ?)",
+            (provider_id, "2026-10-01"),
+        )
+        assert dict(connection.execute(
+            "SELECT * FROM demo_hotel_nights"
+        ).fetchone()) == {
+            "hotel_id": provider_id,
+            "stay_date": "2026-10-01",
+            "nightly_rate_cents": 10000,
+            "rooms_available": 20,
+        }
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                "INSERT INTO demo_hotel_nights (hotel_id, stay_date) VALUES (?, ?)",
+                (provider_id, "2026-10-01"),
+            )
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                "INSERT INTO demo_hotel_nights (hotel_id, stay_date) VALUES (?, ?)",
+                ("unknown", "2026-10-02"),
+            )
+        for bad_date in ("2026-2-01", "2026-02-30", "2026-13-01"):
+            with pytest.raises(sqlite3.IntegrityError):
+                connection.execute(
+                    "INSERT INTO demo_hotel_nights (hotel_id, stay_date) VALUES (?, ?)",
+                    (provider_id, bad_date),
+                )
+        for rate, rooms in ((-1, 20), (10000, -1), (1.5, 20), (10000, 1.5)):
+            with pytest.raises(sqlite3.IntegrityError):
+                connection.execute(
+                    """
+                    INSERT INTO demo_hotel_nights
+                        (hotel_id, stay_date, nightly_rate_cents, rooms_available)
+                    VALUES (?, '2026-10-02', ?, ?)
+                    """,
+                    (provider_id, rate, rooms),
+                )
+    finally:
+        connection.rollback()
+        connection.close()
 
 
 def test_search_history_insert_and_interval_read_survive_reopen(tmp_path: Path) -> None:

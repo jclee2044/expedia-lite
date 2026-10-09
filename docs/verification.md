@@ -8,7 +8,8 @@ Run commands from the project root unless a step says otherwise.
 backend/.venv/bin/python -m pytest backend/tests
 cd frontend
 npm test
-npm run lint
+npm exec -- oxlint .
+npm exec -- eslint .
 npm run build
 ```
 
@@ -103,7 +104,44 @@ horizontal page overflow. Browser console warnings and errors should be empty.
 
 The API contract can also be inspected at `http://127.0.0.1:8000/docs`.
 
-## Current verification evidence
+## Assignment 2 Part 2 verification — October 8, 2026
+
+The [readiness audit](assignment2-part2-stage6.md) records the latest checks:
+**164 backend tests**, **26 frontend tests**, both read-only lint tools, and
+the production build passed. Two existing dependency deprecation warnings
+remain. No dependency was added or upgraded. The complete command transcript
+is [stage6-commands.txt](assignment2-part2-stage6-commands.txt).
+
+Use a new synthetic database as shown in the [recording guide](assignment2-part2-demo.md).
+Never reset the default runtime database to stage a demonstration. Normal
+`backend.app.main` calls the real providers; `backend.tests.browser_scenarios`
+is a separate, explicitly mocked harness and must be labeled as such.
+
+The focused repair checks are:
+
+```bash
+backend/.venv/bin/python -m pytest backend/tests/test_gemini.py backend/tests/test_grounded_answer.py backend/tests/test_retrieval.py backend/tests/test_rag_chat.py -q
+```
+
+Expected live cases: ZIP 16803, October 11–13 totals Campus $230 and Valley
+$270 with checkout excluded; under $50 yields no matching recommendation
+while three hotels remain saved; October 15 has missing nightly data; ZIP
+16804 has no saved hotels. Inspect the saved proposal, checked records,
+second-model JSON and rendered answer with `backend.inspect_rag_demo`.
+Browser checks include Add/Remove, duplicate preservation, reload and both
+server restarts, local-first lookup, list/map keyboard selection, chat
+Edit/Retry/Escape/Enter, and the original Harbor/blank/no-results behavior.
+
+The mock harness exercises a leading-zero ZIP, successful empty provider
+results, unresolved ZIP, provider failure, quota error, rejected UPDATE,
+unsupported model answer, and filtered-empty candidates. It makes no live
+provider calls. Both live and mock browser warning/error logs were empty;
+the mock popup fit a measured 520px viewport with no horizontal overflow.
+This run used reloads and service restarts; restarting the entire browser
+process and every live provider failure were not tested. Follow the guide
+to repeat the same controls for the video.
+
+## Historical Assignment 1 verification evidence
 
 On 2026-09-21, 85 backend tests passed. They covered fresh schema version 4;
 transactional version-1, version-2, and version-3 migration; preserved IDs and

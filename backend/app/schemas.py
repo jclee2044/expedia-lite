@@ -2,6 +2,7 @@
 
 from datetime import date
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -41,6 +42,82 @@ class NearbyHotelSearchResponse(BaseModel):
     radius_meters: int
     result_limit: int
     hotels: list[ExternalHotelResponse]
+
+
+class ProviderHotelSaveInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    place_id: str = Field(min_length=1, pattern=r"\S")
+    name: str | None
+    address: str | None
+    latitude: float = Field(ge=-90, le=90, allow_inf_nan=False)
+    longitude: float = Field(ge=-180, le=180, allow_inf_nan=False)
+
+
+class SavedZipContextInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    postcode: str = Field(pattern=r"^[0-9]{5}$")
+    country_code: Literal["us"]
+    latitude: float = Field(ge=-90, le=90, allow_inf_nan=False)
+    longitude: float = Field(ge=-180, le=180, allow_inf_nan=False)
+    locality: str | None
+
+
+class SavedHotelCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    hotel: ProviderHotelSaveInput
+    center: SavedZipContextInput
+
+
+class DemoHotelNightResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    stay_date: date
+    nightly_rate_cents: int
+    rooms_available: int
+
+
+class SavedHotelResponse(ExternalHotelResponse):
+    nights: list[DemoHotelNightResponse]
+
+
+class SavedHotelSearchResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    center: PostcodeLocationResponse | None
+    hotels: list[SavedHotelResponse]
+    saved_place_ids: list[str]
+
+
+class SavedHotelMutationResponse(BaseModel):
+    place_id: str
+
+
+class ChatHistoryTurn(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    turn_id: UUID
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=6000)
+    created_at_utc: str
+
+
+class ChatHistoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    conversation_id: UUID
+    messages: list[ChatHistoryTurn]
+    last_error: str | None
+    last_error_code: str | None
+
+
+class ChatStreamRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question: str = Field(min_length=1, max_length=500, pattern=r"\S")
+    conversation_id: UUID | None = None
 
 
 class HotelStayResponse(BaseModel):

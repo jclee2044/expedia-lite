@@ -15,6 +15,7 @@ from backend.controllers.database import (
     DEFAULT_DATA_DIRECTORY,
     initialize_database,
 )
+from backend.controllers.gemini import load_assistant_prompt
 from backend.controllers.sessions import SessionStore
 
 
@@ -26,6 +27,7 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        application.state.assistant_prompt = load_assistant_prompt()
         initialize_database(database_path, data_directory)
         yield
 

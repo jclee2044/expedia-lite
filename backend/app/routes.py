@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
+from contextlib import aclosing
 from typing import Annotated
+import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi.responses import StreamingResponse
 
 from backend.app.schemas import (
     AccountCreateRequest,
@@ -15,11 +18,16 @@ from backend.app.schemas import (
     BookingDetailResponse,
     BookingHistoryResponse,
     BookingStatusUpdateRequest,
+    ChatHistoryResponse,
+    ChatStreamRequest,
     HealthResponse,
     HotelSearchResponse,
     LoginRequest,
     NearbyHotelSearchResponse,
     PostcodeLocationResponse,
+    SavedHotelCreateRequest,
+    SavedHotelMutationResponse,
+    SavedHotelSearchResponse,
 )
 from backend.controllers.accounts import authenticate, create_account, get_account
 from backend.controllers.bookings import (
@@ -41,9 +49,17 @@ from backend.controllers.errors import (
     SearchValidationError,
 )
 from backend.controllers.geocoding import lookup_us_postcode
+from backend.controllers.chat_history import ConversationNotFoundError, load_history
+from backend.controllers.rag_chat import stream_rag_answer
 from backend.controllers.places import search_nearby_hotels
 from backend.controllers.search import search_hotel_stays
+from backend.controllers.saved_hotels import (
+    delete_saved_hotel,
+    list_saved_hotels,
+    save_provider_hotel,
+)
 from backend.controllers.users import list_user_bookings
+from backend.models import ExternalHotel, PostcodeLocation
 
 router = APIRouter()
 SESSION_COOKIE = "expedia_session"
@@ -60,6 +76,45 @@ def get_database(request: Request) -> Iterator[sqlite3.Connection]:
 
 
 DatabaseConnection = Annotated[sqlite3.Connection, Depends(get_database)]
+
+
+def _chat_event(kind: str, payload: dict[str, str]) -> str:
+    return f"event: {kind}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+@router.post("/api/chat/stream")
+async def post_chat_stream(payload: ChatStreamRequest, request: Request) -> StreamingResponse:
+    """Stream the checked two-call hotel answer and its conversation ID."""
+
+    async def events() -> AsyncIterator[str]:
+        try:
+            stream = stream_rag_answer(
+                request.app.state.database_path, payload.question.strip(),
+                str(payload.conversation_id) if payload.conversation_id else None,
+                request.app.state.assistant_prompt,
+            )
+            async with aclosing(stream):
+                async for event in stream:
+                    if await request.is_disconnected():
+                        return
+                    yield _chat_event(event.kind, event.payload)
+        except ConversationNotFoundError as error:
+            yield _chat_event("error", {"message": str(error)})
+
+    return StreamingResponse(
+        events(), media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.get("/api/chat/history", response_model=ChatHistoryResponse)
+def get_chat_history(request: Request, conversation_id: str = Query(pattern=r"^[0-9a-fA-F-]{36}$")) -> ChatHistoryResponse:
+    """Restore saved messages after a browser refresh or backend restart."""
+    try:
+        history = load_history(request.app.state.database_path, conversation_id)
+    except ConversationNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    return ChatHistoryResponse.model_validate(history)
 
 
 @router.get("/api/health", response_model=HealthResponse)
@@ -101,6 +156,48 @@ def get_nearby_hotels(
     except GeoapifyRequestError as error:
         raise HTTPException(status_code=502, detail="Nearby hotel provider is unavailable.") from error
     return NearbyHotelSearchResponse.model_validate(search)
+
+
+@router.get("/api/saved-hotels", response_model=SavedHotelSearchResponse)
+def get_saved_hotels(
+    connection: DatabaseConnection,
+    postcode: str = Query(pattern=r"^[0-9]{5}$", description="Five-digit U.S. ZIP code"),
+) -> SavedHotelSearchResponse:
+    """Return saved hotels for a ZIP and all saved provider IDs."""
+    try:
+        result = list_saved_hotels(connection, postcode)
+    except sqlite3.DatabaseError as error:
+        raise HTTPException(status_code=500, detail="Saved hotels could not be loaded.") from error
+    return SavedHotelSearchResponse.model_validate(result)
+
+
+@router.post("/api/saved-hotels", response_model=SavedHotelMutationResponse)
+def post_saved_hotel(
+    payload: SavedHotelCreateRequest,
+    connection: DatabaseConnection,
+) -> SavedHotelMutationResponse:
+    """Save a provider place with its ZIP context and fictional demo nights."""
+    try:
+        save_provider_hotel(
+            connection,
+            ExternalHotel(**payload.hotel.model_dump()),
+            PostcodeLocation(**payload.center.model_dump()),
+        )
+    except sqlite3.DatabaseError as error:
+        raise HTTPException(status_code=500, detail="Hotel could not be saved locally.") from error
+    return SavedHotelMutationResponse(place_id=payload.hotel.place_id)
+
+
+@router.delete("/api/saved-hotels/{hotel_id:path}", status_code=204)
+def remove_saved_hotel(hotel_id: str, connection: DatabaseConnection) -> Response:
+    """Remove a provider place and its ZIP and nightly records."""
+    try:
+        delete_saved_hotel(connection, hotel_id)
+    except RecordNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except sqlite3.DatabaseError as error:
+        raise HTTPException(status_code=500, detail="Hotel could not be removed locally.") from error
+    return Response(status_code=204)
 
 
 def _resolve_zip_location(postcode: str) -> PostcodeLocationResponse:

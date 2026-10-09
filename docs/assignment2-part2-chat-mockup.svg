@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title description">
+  <title id="title">Expedia Lite chat popup early mockup</title>
+  <desc id="description">Desktop and narrow-screen sketches of a bottom-right green-bordered hotel chat popup, including scrollable messages, streaming status, and error states.</desc>
+  <style>
+    text { font-family: Inter, Arial, sans-serif; fill: #191e3b; }
+    .caption { font-size: 13px; font-weight: 700; fill: #2f6b24; letter-spacing: 1.2px; }
+    .small { font-size: 12px; fill: #596277; }
+    .body { font-size: 13px; }
+    .bold { font-weight: 750; }
+    .heading { font-size: 20px; font-weight: 800; fill: #2f6b24; }
+  </style>
+  <rect width="1200" height="800" fill="#f7f5f2"/>
+  <text x="32" y="39" font-size="25" font-weight="800" fill="#2f6b24">Part 2 chat · early interaction mockup</text>
+  <text x="32" y="61" class="small">Design sketch prepared before chat implementation · October 6, 2026</text>
+
+  <!-- Desktop app context -->
+  <text x="34" y="92" class="caption">DESKTOP · POPUP OPEN</text>
+  <rect x="32" y="106" width="744" height="584" rx="18" fill="#ffffff" stroke="#d7d9df" stroke-width="2"/>
+  <rect x="32" y="106" width="744" height="58" rx="18" fill="#ffffff"/>
+  <line x1="32" y1="164" x2="776" y2="164" stroke="#d7d9df"/>
+  <circle cx="62" cy="135" r="15" fill="#66bb51"/>
+  <text x="55" y="141" font-size="18" font-weight="800">✦</text>
+  <text x="88" y="141" font-size="18" font-weight="800" fill="#2f6b24">Expedia Lite</text>
+  <rect x="600" y="119" width="72" height="32" rx="16" fill="#66bb51"/>
+  <text x="616" y="140" class="small bold">Find stays</text>
+  <text x="689" y="140" class="small">My trips</text>
+  <text x="78" y="211" class="caption">FIND YOUR NEXT STAY</text>
+  <text x="78" y="244" font-size="29" font-weight="800" fill="#2f6b24">Choose a hotel stay</text>
+  <rect x="78" y="273" width="632" height="130" rx="15" fill="#ffffff" stroke="#d7d9df"/>
+  <text x="100" y="307" class="heading">Find hotels near a U.S. ZIP code</text>
+  <rect x="100" y="329" width="588" height="48" rx="10" fill="#f7f5f2" stroke="#d7d9df"/>
+  <text x="118" y="358" class="body">16803</text>
+  <rect x="590" y="334" width="91" height="38" rx="9" fill="#66bb51"/>
+  <text x="615" y="358" class="body bold">Search</text>
+  <rect x="78" y="430" width="632" height="220" rx="15" fill="#ffffff" stroke="#d7d9df"/>
+  <text x="100" y="461" class="caption">SAVED LOCALLY</text>
+  <text x="100" y="491" class="heading">Hotels near ZIP 16803</text>
+  <rect x="100" y="510" width="262" height="111" rx="11" fill="#f4fbf2" stroke="#d7d9df"/>
+  <text x="115" y="540" class="body bold">Campus Lantern</text>
+  <text x="115" y="565" class="small">Oct 11 · $120 · 2 rooms</text>
+  <text x="115" y="586" class="small">Simulated classroom data</text>
+  <rect x="379" y="510" width="309" height="111" rx="11" fill="#e9f6e6" stroke="#d7d9df"/>
+  <path d="M400 586 C451 530 498 604 550 549 C598 496 644 568 674 526" fill="none" stroke="#a8ca9f" stroke-width="9"/>
+  <circle cx="520" cy="551" r="9" fill="#2f6b24"/>
+  <circle cx="600" cy="570" r="9" fill="#2f6b24"/>
+
+  <!-- Desktop chat popup -->
+  <rect x="393" y="221" width="355" height="438" rx="18" fill="#ffffff" stroke="#2f6b24" stroke-width="3"/>
+  <path d="M411 222 h319 a18 18 0 0 1 18 18 v47 h-355 v-47 a18 18 0 0 1 18-18" fill="#e9f6e6"/>
+  <text x="412" y="254" class="body bold" fill="#2f6b24">Ask Expedia Lite</text>
+  <text x="412" y="274" class="small">Stub preview · no hotel lookup yet</text>
+  <circle cx="721" cy="248" r="14" fill="#ffffff" stroke="#2f6b24"/>
+  <text x="716" y="253" font-size="17">×</text>
+  <line x1="393" y1="287" x2="748" y2="287" stroke="#b4d6ab"/>
+  <text x="412" y="317" class="small">Today</text>
+  <rect x="476" y="330" width="249" height="64" rx="14" fill="#66bb51"/>
+  <text x="490" y="354" class="body bold">You</text>
+  <text x="490" y="375" class="body">Compare hotels near 16803.</text>
+  <rect x="411" y="410" width="289" height="102" rx="14" fill="#f4fbf2" stroke="#c8e3c0"/>
+  <text x="427" y="435" class="body bold" fill="#2f6b24">Assistant</text>
+  <text x="427" y="458" class="body">I'm replying in chunks…</text>
+  <text x="427" y="482" class="small">Hotel facts will come after RAG. ▍</text>
+  <text x="412" y="539" class="small">● Streaming reply</text>
+  <rect x="735" y="303" width="4" height="220" rx="2" fill="#e1e8df"/>
+  <rect x="735" y="370" width="4" height="69" rx="2" fill="#66bb51"/>
+  <line x1="393" y1="550" x2="748" y2="550" stroke="#d7d9df"/>
+  <rect x="410" y="568" width="238" height="54" rx="10" fill="#ffffff" stroke="#8d9b89"/>
+  <text x="423" y="600" class="small">Ask a question…</text>
+  <rect x="658" y="568" width="73" height="54" rx="10" fill="#66bb51"/>
+  <text x="677" y="600" class="body bold">Send</text>
+  <text x="414" y="643" class="small">Messages remain when this popup closes.</text>
+
+  <!-- Mobile sketch -->
+  <text x="817" y="92" class="caption">NARROW VIEW · POPUP OPEN</text>
+  <rect x="811" y="106" width="356" height="584" rx="22" fill="#ffffff" stroke="#d7d9df" stroke-width="2"/>
+  <rect x="822" y="117" width="334" height="49" rx="12" fill="#f7f5f2"/>
+  <text x="843" y="146" class="body bold" fill="#2f6b24">Expedia Lite</text>
+  <rect x="826" y="184" width="326" height="476" rx="16" fill="#ffffff" stroke="#2f6b24" stroke-width="3"/>
+  <path d="M842 185 h294 a16 16 0 0 1 16 16 v44 h-326 v-44 a16 16 0 0 1 16-16" fill="#e9f6e6"/>
+  <text x="843" y="215" class="body bold" fill="#2f6b24">Ask Expedia Lite</text>
+  <text x="843" y="236" class="small">Stub preview</text>
+  <text x="1121" y="216" font-size="19">×</text>
+  <rect x="897" y="272" width="238" height="62" rx="14" fill="#66bb51"/>
+  <text x="912" y="297" class="body bold">You</text>
+  <text x="912" y="318" class="body">What about Oct 12?</text>
+  <rect x="842" y="350" width="266" height="92" rx="14" fill="#f4fbf2" stroke="#c8e3c0"/>
+  <text x="858" y="375" class="body bold" fill="#2f6b24">Assistant</text>
+  <text x="858" y="400" class="body">Still replying… ▍</text>
+  <text x="858" y="422" class="small">Visible chunks appear here.</text>
+  <line x1="826" y1="548" x2="1152" y2="548" stroke="#d7d9df"/>
+  <rect x="840" y="564" width="212" height="53" rx="10" fill="#ffffff" stroke="#8d9b89"/>
+  <text x="853" y="595" class="small">Ask a question…</text>
+  <rect x="1060" y="564" width="78" height="53" rx="10" fill="#66bb51"/>
+  <text x="1080" y="595" class="body bold">Send</text>
+  <text x="841" y="642" class="small">Scrollable conversation above input</text>
+
+  <!-- Additional states -->
+  <text x="33" y="729" class="caption">ALSO DESIGN FOR</text>
+  <rect x="181" y="706" width="282" height="48" rx="12" fill="#e9f6e6"/>
+  <text x="198" y="735" class="body">Closed · floating “Chat” button</text>
+  <rect x="476" y="706" width="298" height="48" rx="12" fill="#fff5d6"/>
+  <text x="492" y="735" class="body">No data · explain missing records</text>
+  <rect x="787" y="706" width="379" height="48" rx="12" fill="#fff0ed"/>
+  <text x="804" y="735" class="body">Failure · retain question and offer retry</text>
+</svg>

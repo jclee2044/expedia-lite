@@ -1,0 +1,155 @@
+Synthetic demo trace — turn f2afaf26-5a1e-4a1c-870e-252b37e6b39c
+
+QUESTION
+Compare saved hotels near ZIP 16803 from 2026-10-11 to 2026-10-13 by total cost.
+
+PROPOSAL — prompt version 5
+{
+  "sql": "SELECT DISTINCT h.hotel_id AS hotel_id FROM saved_hotels AS h JOIN saved_hotel_zips AS z ON z.hotel_id = h.hotel_id LEFT JOIN demo_hotel_nights AS n ON n.hotel_id = h.hotel_id AND n.stay_date >= :check_in AND n.stay_date < :check_out WHERE z.postcode = :postcode",
+  "params": {
+    "postcode": "16803",
+    "check_in": "2026-10-11",
+    "check_out": "2026-10-13"
+  }
+}
+
+EXECUTION — prompt version 5
+{
+  "sql": "SELECT DISTINCT h.hotel_id AS hotel_id FROM saved_hotels AS h JOIN saved_hotel_zips AS z ON z.hotel_id = h.hotel_id LEFT JOIN demo_hotel_nights AS n ON n.hotel_id = h.hotel_id AND n.stay_date >= :check_in AND n.stay_date < :check_out WHERE z.postcode = :postcode",
+  "params": {
+    "postcode": "16803",
+    "check_in": "2026-10-11",
+    "check_out": "2026-10-13"
+  },
+  "status": "attempted"
+}
+
+RESULT — prompt version 5
+{
+  "request": {
+    "postcode": "16803",
+    "check_in": "2026-10-11",
+    "check_out": "2026-10-13"
+  },
+  "retrieval": {
+    "candidate_ids": [
+      "fixture:budget",
+      "fixture:campus",
+      "fixture:valley"
+    ],
+    "matches": [
+      {
+        "hotel_id": "fixture:campus",
+        "name": "Campus Lantern",
+        "address": null,
+        "postcode": "16803",
+        "nights": [
+          {
+            "stay_date": "2026-10-11",
+            "nightly_rate_cents": 12000,
+            "rooms_available": 2
+          },
+          {
+            "stay_date": "2026-10-12",
+            "nightly_rate_cents": 11000,
+            "rooms_available": 2
+          }
+        ],
+        "total_cents": 23000
+      },
+      {
+        "hotel_id": "fixture:valley",
+        "name": "Valley Ridge",
+        "address": null,
+        "postcode": "16803",
+        "nights": [
+          {
+            "stay_date": "2026-10-11",
+            "nightly_rate_cents": 13000,
+            "rooms_available": 2
+          },
+          {
+            "stay_date": "2026-10-12",
+            "nightly_rate_cents": 14000,
+            "rooms_available": 2
+          }
+        ],
+        "total_cents": 27000
+      }
+    ],
+    "incomplete_ids": [],
+    "unavailable_ids": [
+      "fixture:budget"
+    ],
+    "saved_hotel_count": 3
+  },
+  "second_model_answer": {
+    "hotel_ids": [
+      "fixture:campus",
+      "fixture:valley"
+    ],
+    "reason": "lowest_total_cost"
+  },
+  "answer_validation": "passed; facts rendered from checked records"
+}
+
+DIRECT SQLITE NIGHTLY ROWS (maximum 701)
+[
+  {
+    "name": "Nittany Budget",
+    "stay_date": "2026-10-11",
+    "nightly_rate_cents": 10000,
+    "rooms_available": 0
+  },
+  {
+    "name": "Nittany Budget",
+    "stay_date": "2026-10-12",
+    "nightly_rate_cents": 9000,
+    "rooms_available": 2
+  },
+  {
+    "name": "Campus Lantern",
+    "stay_date": "2026-10-11",
+    "nightly_rate_cents": 12000,
+    "rooms_available": 2
+  },
+  {
+    "name": "Campus Lantern",
+    "stay_date": "2026-10-12",
+    "nightly_rate_cents": 11000,
+    "rooms_available": 2
+  },
+  {
+    "name": "Valley Ridge",
+    "stay_date": "2026-10-11",
+    "nightly_rate_cents": 13000,
+    "rooms_available": 2
+  },
+  {
+    "name": "Valley Ridge",
+    "stay_date": "2026-10-12",
+    "nightly_rate_cents": 14000,
+    "rooms_available": 2
+  }
+]
+
+DISPLAYED ANSWER
+ZIP 16803, check-in 2026-10-11, checkout 2026-10-13 (checkout excluded).
+
+Selected saved hotels, ordered by checked total cost:
+
+Campus Lantern — total $230.00
+2026-10-11: $120.00/night; 2 simulated rooms.
+2026-10-12: $110.00/night; 2 simulated rooms.
+
+Valley Ridge — total $270.00
+2026-10-11: $130.00/night; 2 simulated rooms.
+2026-10-12: $140.00/night; 2 simulated rooms.
+
+Each selected hotel has positive simulated room availability for every requested night.
+Campus Lantern has the lowest total cost among the checked matches.
+1 query candidate has zero simulated rooms for a requested night.
+
+Rates and room counts are simulated classroom data. No booking is made.
+
+Foreign-key violations: 0

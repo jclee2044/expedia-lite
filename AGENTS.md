@@ -44,6 +44,9 @@
 ## Verification and reporting
 
 - Run the smallest relevant checks, tests, and builds before considering a change complete.
+- After each implementation turn, run the AutoLoop fix-and-verify process and
+  an automated browser check of reachable application behavior. Record any
+  behavior that cannot yet be exercised through the browser.
 - Use `backend/.venv/bin/python` for every backend verification command.
 - Run frontend commands from `frontend/` with the project-owned npm dependencies.
 - Update `README.md` when setup, run commands, dependencies, or project structure change.

@@ -24,10 +24,11 @@ backend/   MVC backend and tests
   tests/        Backend controller and API checks
   db/           Ignored SQLite runtime location
 frontend/  Vue 3 application and frontend tooling
+  src/api/     Backend request helpers, including streamed chat parsing
 data/      Synthetic hotel, trip, user, and booking CSV data with its schema guide
 docs/      Design, verification guidance, assignment description, and visual references
 handoffs/  Cross-session procedure and optional current handoff
-prompts/   Reserved for selected project prompts
+prompts/   Versioned hotel assistant instructions loaded by the backend
 ```
 
 The backend virtual environment and frontend dependencies are project-owned. Do not install project dependencies globally.
@@ -70,7 +71,11 @@ cd frontend
 npm run dev
 ```
 
-The Vue development server runs at `http://127.0.0.1:5173` and proxies `/api` requests to the backend at `http://127.0.0.1:8000`. Start both servers to use either search mode. The **Name** mode searches synthetic SQLite stays and supports booking; the **ZIP Code** mode searches live Geoapify hotel places and does not offer booking. The interface uses a green brand palette and responsive headings across Search, My trips, and Account.
+The Vue development server runs at `http://127.0.0.1:5173` and proxies `/api` requests to the backend at `http://127.0.0.1:8000`. Start both servers to use either search mode. The **Name** mode searches synthetic SQLite stays and supports booking; the **ZIP Code** mode shows saved local provider hotels first, falling back to live Geoapify places when none are saved for that ZIP. ZIP results do not offer booking. The interface uses a green brand palette and responsive headings across Search, My trips, and Account.
+
+For an isolated preview on another backend port, start Vite with
+`EXPEDIA_API_TARGET=http://127.0.0.1:8001 npm run dev -- --port 5174` from
+`frontend/`. This changes only Vite's server-side proxy target.
 
 From the project root, start the FastAPI development server:
 
@@ -107,8 +112,9 @@ details.
 Select **ZIP Code** in the Search view to open the ZIP lookup panel. It has a
 text field with a numeric keyboard hint; letters can be typed but are rejected
 on submission. Submitting anything other than five digits displays an inline
-error without making a request. A valid submission calls the local
-`/api/hotels/nearby` route through the existing Vite proxy. The frontend never
+error without making a request. A valid submission checks locally saved hotels
+first, then calls `/api/hotels/nearby` through the existing Vite proxy when the
+local search is empty. The frontend never
 calls Geoapify directly and contains no provider key.
 
 `GET /api/hotels/nearby?postcode=16802` first verifies that Geoapify resolves
@@ -132,6 +138,186 @@ OpenStreetMap tiles with visible attribution, subject to the
 Leaflet does not need an API key. The provider's 50-result limit and variable
 coverage mean this search is not a complete hotel inventory.
 
+## Saved provider hotels and local-first ZIP search
+
+The ZIP view first calls `GET /api/saved-hotels?postcode=16802`. Its response is
+`{"center": null, "hotels": [], "saved_place_ids": []}` when no hotel is saved
+for that ZIP. `saved_place_ids` lists all locally saved provider IDs, including
+ones associated with another ZIP. The interface distinguishes hotels saved for
+the current ZIP from those saved only for another ZIP, so Add can create a
+second ZIP association without deleting the first.
+When this request succeeds with no matching hotels, Vue calls the unchanged
+`GET /api/hotels/nearby` endpoint. A local lookup error is shown to the user
+without calling the provider. When matching hotels exist, Vue shows only those
+saved places, their stored ZIP center, and their dated demo nights. It labels
+the results **Saved locally** and explains that they are not a complete area
+inventory. Otherwise it labels the provider response **API results**. After a
+successful Add to Local action, Vue reloads the saved results so the stored
+demo nights appear immediately. The saved card keeps Add to Local visible but
+disabled and offers Remove from Local.
+
+`POST /api/saved-hotels` accepts this JSON shape, using the selected provider
+hotel and the current search response's `center` without changing either ID:
+
+```json
+{
+  "hotel": {
+    "place_id": "provider-place-id",
+    "name": "Example Hotel",
+    "address": "1 Example Street",
+    "latitude": 40.8,
+    "longitude": -77.8
+  },
+  "center": {
+    "postcode": "16802",
+    "country_code": "us",
+    "latitude": 40.8031,
+    "longitude": -77.8613,
+    "locality": "State College"
+  }
+}
+```
+
+The save response is `200` with `{"place_id": "provider-place-id"}`. `name`,
+`address`, and `locality` may be null. Saving again preserves the original
+provider hotel fields and any edited demo rates or room counts; it can add a
+new ZIP association without duplicating the hotel or its nights. For a new
+hotel, the backend creates nights dated October 10–14, 2026, with fictional
+defaults of 10000 cents and 20 rooms. `GET /api/saved-hotels?postcode=16802`
+returns a `center` object and matching `hotels`, each with the unchanged
+`place_id`, `name`, `address`, coordinates, and a `nights` array of
+`stay_date`, `nightly_rate_cents`, and `rooms_available`. These numbers are
+simulated classroom data and do not come from Geoapify.
+
+`DELETE /api/saved-hotels/{hotel_id}` returns `204` and removes that saved
+hotel, all its ZIP associations, and its demo nights in one transaction;
+unknown IDs return `404`. The new GET, POST, and DELETE routes validate input
+with `422` responses and return a safe `500` detail on database failure.
+
+## Grounded saved-hotel chat (Assignment 2 Part 2)
+
+Set `GEMINI_API_KEY` in the ignored project-root `.env` and restart FastAPI.
+The floating **Chat** button opens a green-bordered popup from any view.
+Enter sends, Shift+Enter adds a line, and Escape closes it. The browser keeps
+an opaque conversation ID in local storage; FastAPI keeps messages and trace
+stages in SQLite, so closing, refreshing, or restarting the backend retains
+the conversation. A failed reply is not saved as a successful assistant
+message. The popup shows an error; missing ZIP/date context offers **Edit
+question**, while a provider or retrieval failure offers **Retry reply**.
+
+Ask with one five-digit ZIP and either one night or check-in and checkout
+dates, using ISO dates (`2026-10-11`) or full month dates (`October 11,
+2026`). Two dates are interpreted in check-in then checkout order. A follow-up
+may reuse the previous ZIP and dates if it explicitly says “same,” “that,”
+“those,” or “there.” Ambiguous or missing context gets a clarification error
+without sending a model request. Rates and room counts are simulated course
+data; the chat cannot make bookings or verify live hotel inventory.
+
+`POST /api/chat/stream` accepts a nonblank `question` of at most 500
+characters and optional saved `conversation_id` UUID. The frontend sends no
+history text; the backend loads at most six saved prior messages. Invalid JSON
+or fields return `422`. A valid request returns `text/event-stream` with
+these JSON server-sent events:
+
+```text
+event: meta
+data: {"conversation_id":"uuid","turn_id":"uuid"}
+
+event: delta
+data: {"text":"Checked hotel answer..."}
+
+event: done
+data: {}
+
+event: error
+data: {"message":"Gemini timed out. Try again.","code":"retryable"}
+```
+
+`meta` supplies the ID to store. `done` marks a complete persisted reply;
+The complete model recommendation is buffered and validated before any
+`delta` is sent. `error` has `code: "missing_context"` for an
+editable question or `code: "retryable"` for other failures. `GET
+/api/chat/history?conversation_id=uuid` returns `conversation_id`, saved
+`messages` (`turn_id`, `role`, `content`, `created_at_utc`), `last_error`, and
+`last_error_code`; unknown IDs return `404`.
+
+The backend asks `gemini-3.5-flash-lite` to propose one SQL query, checks it
+through the read-only controller below, then makes a second Gemini request
+with the original question and at most ten checked hotel records. The second
+request uses a JSON schema containing only selected `hotel_ids` and a
+supported `reason`. The backend requires normal provider completion, validates
+the selection against checked matches, and renders all names, dates, prices,
+and rooms from those records. It saves this checked answer and then sends it
+to Vue in chunks. Invented prose fields, unsupported IDs, inconsistent
+reasons, and incomplete model responses produce an error without a successful
+assistant message. Conversation and stage records include timestamps,
+turn IDs, prompt version 5, `second_model_answer`, and `answer_validation`.
+Provider keys and raw provider errors never go to the browser. The
+`sql_proposal` and `grounded_answer` instructions are in
+`prompts/hotel-assistant.md`.
+
+### Reproduce the synthetic RAG demonstration
+
+The [fixed fixture](docs/part2-rag-fixture.json) contains three invented saved
+hotels, their ZIP associations, and six simulated nights. It does not
+represent provider room inventory. From the project root, create a **new**
+ignored SQLite database, then run a separate backend on port 8001:
+
+```bash
+backend/.venv/bin/python -m backend.prepare_rag_demo backend/db/part2-demo.sqlite3
+backend/.venv/bin/python -c 'from pathlib import Path; import uvicorn; from backend.app.main import create_app; uvicorn.run(create_app(Path("backend/db/part2-demo.sqlite3")), host="127.0.0.1", port=8001)'
+```
+
+The preparation command refuses an existing output path and never targets the
+default runtime database. In a second terminal, run the frontend from
+`frontend/`:
+
+```bash
+EXPEDIA_API_TARGET=http://127.0.0.1:8001 npm run dev -- --host 127.0.0.1 --port 5174
+```
+
+Open `http://127.0.0.1:5174/` and ask for the three cheapest available saved
+hotels near ZIP 16803 on October 11, 2026. The checked one-night matches are
+Campus Lantern at $120 and Valley Ridge at $130; Nittany Budget has zero
+rooms that night. ZIP 16804 has no saved hotels, and October 15 has no
+nightly records. The [trace and evidence](docs/rag-context.md) record the
+model's proposal, checked rows, and observed answers. After asking a question,
+show its complete local trace with this read-only command:
+
+```bash
+backend/.venv/bin/python -m backend.inspect_rag_demo backend/db/part2-demo.sqlite3
+```
+
+The [recording guide](docs/assignment2-part2-demo.md) provides the two-night
+success, no-match, missing-night, persistence, and explicitly mocked failure
+sequence. Run
+`backend/.venv/bin/python -m pytest backend/tests/test_retrieval.py -q` to
+repeat the rejected-query proof against temporary databases.
+
+## Checked saved-hotel retrieval (Assignment 2 Part 2, Turn 3)
+
+`backend/controllers/retrieval.py` accepts a trusted backend `StayRequest` and
+one proposed, parameterized SQLite `SELECT` that returns only `hotel_id`
+candidates. Proposed bind values must exactly match the trusted request. It requires named
+`:postcode`, `:check_in`, and `:check_out` binds; a five-digit ZIP; and a stay
+of one to fourteen nights. It opens a separate SQLite read-only connection,
+allows reads only from `saved_hotels`, `saved_hotel_zips`, and
+`demo_hotel_nights`, rejects SQL functions and multiple statements, limits
+candidate rows to 50, and interrupts an over-budget query. It then uses
+trusted backend SQL to check the ZIP association, every requested night,
+positive room counts, and the integer-cent total. Checkout is excluded.
+Its framework-free `RetrievalResult` returns ordered verified stays plus IDs
+with incomplete or unavailable nightly data. It also independently counts
+saved hotels for the ZIP in the same read-only snapshot. An empty filtered
+candidate set therefore cannot be mistaken for an absence of saved hotels.
+A no-match result has no verified stays.
+The chat endpoint calls this controller between its two model requests. Tests
+use synthetic temporary databases.
+
+Schema version 7 adds `chat_conversations`, `chat_messages`, and
+`chat_retrieval_stages` for durable history and trace. The
+version-6 migration is additive and preserves existing hotel and booking rows.
+
 ## SQLite foundation
 
 `backend/models/schema.py` defines the SQLite representation and relationships.
@@ -141,6 +327,24 @@ and user-ID allocation.
 `backend/controllers/seed.py` validates all four related CSV files and imports
 them transactionally only when the database has no seed marker and all domain
 tables are empty.
+
+Schema version 5 adds two tables for Assignment 2 Part 2. In
+`saved_hotels`, the ZIP search response's `place_id` maps exactly to the
+`hotel_id` primary key; `name`, `address`, `latitude`, and `longitude` map to
+columns with those names. `name` and `address` may be null. Provider hotel IDs
+remain separate from the synthetic `hotels.hotel_id` values. In
+`demo_hotel_nights`, `(hotel_id, stay_date)` uniquely identifies a night for a
+saved provider hotel. Rows default to `nightly_rate_cents = 10000` and
+`rooms_available = 20` when inserted. These are fictional classroom values;
+the ZIP search API supplies neither prices nor room availability. The new
+tables are populated only by an explicit save and do not change the Part 1 API.
+Existing version 4 databases migrate additively on initialization; fresh
+databases receive the same tables.
+
+Schema version 6 adds `saved_hotel_zips`, linking provider hotel IDs to each
+searched ZIP and its stored center coordinates and locality. Its composite
+primary key prevents duplicate hotel/ZIP associations. Existing version 5
+databases migrate without changing saved hotels or nights.
 
 The default runtime path is
 `backend/db/expedia_lite.sqlite3`. Runtime SQLite files are ignored by
@@ -301,6 +505,9 @@ the no-results state separately. Live place counts can change.
 - `docs/mvc-contracts.md` records MVC dependency rules and controller input/output contracts.
 - `docs/verification.md` records checks for the earlier name-search and booking workflow, with historical results.
 - `docs/assignment2-description.md` describes the ZIP-search and later shortlist assignment; `docs/assignment2-part1-notes.md` records Part 1 design decisions.
+- `docs/assignment2-part2-revised.md` records the October 1 RAG revision and links the supplied instructor notes; `docs/assignment2-part2-plan.md` records prerequisites and human checkpoints. The older Part 2 shortlist description is historical.
+- `docs/assignment2-part2-preflight.md` records the Turn 0 foundation checks, synthetic RAG fixture, popup research, and early SVG mockup.
+- `prompts/hotel-assistant.md` is the staged system prompt loaded by the raw Gemini preview. Its SQL and grounded-answer modes are reserved for later RAG work.
 - `prompts/` preserves the selected setup and hotel-search instructions that shaped the project.
 - `handoffs/create-handoff.md` contains the reusable prompts for creating and verifying a handoff.
 - `handoffs/current.md` should exist only when a current continuation note has been created or refreshed.

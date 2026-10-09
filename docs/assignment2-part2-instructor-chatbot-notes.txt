@@ -1,0 +1,183 @@
+Build a Business-Aware Hotel Chatbot
+Continue your Expedia Replica project. Connect the chatbot to OpenAI, then use your saved hotel records to answer business questions. By the end, you should be able to trace a question from the frontend through SQL retrieval to a supported answer and a saved conversation.
+
+Example: “Show the three cheapest saved hotels near ZIP 16803 with at least one room available for the night of October 11, 2026.”
+
+Workflow: User question → LLM proposes SQL → FastAPI checks and queries SQLite → retrieved records augment the next request → LLM generates an answer → frontend displays it. Save messages and retrieval steps in the backend database.
+
+Follow the Demonstrations
+Watch the videos in order. Each recording combines several actions; the numbered steps below break the work into smaller tasks. Complete one task, inspect the result, and then continue. Use your existing project structure and the intermediate skills you have practiced in class.
+
+Your instructor’s original instructions and reference code are preserved in the expandable notes beside the relevant steps. Use the refined seven-point instructions for the final RAG implementation. The added steps and checkpoints explain how to work through them.
+
+1. API setup · 2. Wiring · 3. Basic chatbot · 4. Business-aware RAG · 5. Manual verification
+
+Review: RAG, the lecture diagram, and the two stages of context
+What Happens During a Chat Session?
+Follow one hotel question through the conversation. Time moves downward. Each message has a role identifying its source and content holding what it says. The timestamps below illustrate the order, not the time each step must take.
+
+ONE CONVERSATION   conversation_id = demo-001   ↓ time
+
+14:00:00 · System prompt
+
+role = system
+
+content: Purpose, hotel schema, JOIN relationships, and rules loaded from the prompt file.
+
+14:00:01 · User question
+
+role = user
+
+content: “Show the three cheapest available saved hotels near 16803 for October 11, 2026.”
+
+↓   Both messages go into the first LLM request
+
+14:00:02 · LLM call 1 → assistant requests a lookup
+
+role = assistant   content: Proposed SQL and parameters.
+
+JOIN the three hotel tables; filter ZIP, date, and available rooms; sort by price; return up to three rows.
+
+↓   Proposed query goes to the backend
+
+14:00:03 · FastAPI checks SQL → SQLite retrieves records
+
+Backend processing step: enforce read-only access, approved tables, and limits; execute the permitted query. Record the executed SQL or an error.
+
+↓   The tool returns data
+
+14:00:04 · Retrieved records
+
+role = tool   content: Matching hotel rows, an empty result, or a retrieval error.
+
+For matching rows: hotel ID, name, stay date, nightly rate, and rooms available. These are simulated classroom records.
+
+↓   Question + instructions + retrieved records augment the next request
+
+14:00:05 · LLM call 2 → assistant answers
+
+role = assistant   content: The natural-language hotel answer shown in the frontend.
+
+Use the retrieved names, dates, and prices. Explain an empty result or retrieval failure instead of inventing an answer.
+
+↓   The conversation continues
+
+14:00:06 · User follow-up
+
+role = user   content: “What about October 12?”
+
+↓   Send relevant conversation history and repeat the retrieval-and-answer flow
+
+Save the trace as each step happens
+
+message_id · conversation_id · timestamp · role · content
+
+Keep user input, assistant output, SQL, results, and errors linked to the same conversation. Retain the prompt or its version so the trace identifies the instructions used.
+
+Read the roles correctly: The LLM produces assistant messages. FastAPI and SQLite perform the retrieval; they are processing components, not message roles. Here, tool labels retrieved data in the application’s conversation trace. An assistant message may request a tool or contain the final answer.
+
+Connect this to Video 5: Find the same conversation_id in your history table and follow the timestamps. The role tells you who supplied each message; the content tells you what was sent, returned, or displayed. Give intermediate records a clear stage label, such as proposed SQL, executed SQL, or retrieval result.
+
+Video 1: OpenAI API Key and Model Selection
+open_ai_api_key_and_model_selection.mov
+
+Open open_ai_api_key_and_model_selection.mov in OneDrive (new tab)Links to an external site.
+
+
+If the player does not load, use the OneDrive link above.
+
+Important Steps
+Open your existing Expedia Replica project. Review the current Git status, then create or switch to rag_integration. Preserve any work already in progress.
+Create or sign in to your OpenAI API account. Add the small amount of API credit described in the instructor notes and create an API key.
+Save the key in your project-root .env. The instructor notes use OPEN_AI; make the backend explicitly load that variable and pass its value to the API client. Do not assume the client automatically recognizes this custom name.
+Review the model available to your account and its current API pricing. Set the model in the backend configuration, then keep the reference code available while adapting it to your application.
+Check that .env is ignored by Git. Keep the key in the backend; do not include it in frontend code, screenshots, or prompts.
+Checkpoint: Confirm the backend can load the model setting and detect that a key is configured without printing the key.
+
+Implementation note: The model name, pricing, and reference code below are retained from the recording. Check your account’s current model availability and pricing before running the integration. The empty input=[] in the reference must be connected to the actual message in your backend.
+
+Original instructor notes: OpenAI setup and reference code
+Video 2: RAG Wiring — Connect the Chatbot to OpenAI
+rag_wiring.mov
+
+Open rag_wiring.mov in OneDrive (new tab)Links to an external site.
+
+
+If the player does not load, use the OneDrive link above.
+
+Important Steps
+Locate the existing frontend components, API request functions, and backend routes. Identify where the new chatbot interface and server-side chat function belong.
+Create or adapt the chatbot interface with a message field, a Send action, and a conversation display. Keep request handling separate from presentation.
+Add a FastAPI chat endpoint that accepts the user's message and returns a consistent response for the frontend.
+Adapt the supplied reference code into a backend service function. Use the configured API key and model to send a message to OpenAI and extract its reply.
+Connect the frontend request to the chat endpoint. Add pending and error states so the user can tell whether a reply is loading or a request has failed.
+Start both services and submit a short message. Follow the request from the frontend through FastAPI to the service function and back to the conversation display.
+Checkpoint: Confirm that one message produces an OpenAI reply through your backend. Check the browser's Network panel: the frontend should call your application, with no API key included in the request.
+
+Video 3: Basic Chatbot
+basic_chatbot.mov
+
+Open basic_chatbot.mov in OneDrive (new tab)Links to an external site.
+
+
+If the player does not load, use the OneDrive link above.
+
+Important Steps
+Start the backend and frontend using the project's existing startup instructions. Open the chatbot and send a short greeting.
+Check that the frontend sends the message to your backend and that the backend calls OpenAI directly. Inspect the browser's Network panel and backend status without exposing credentials.
+Check the conversation display. User messages and assistant replies should be distinguishable, and the interface should show when a reply is pending.
+Send a follow-up message that refers to the prior exchange. Check whether the backend supplies the relevant conversation context.
+Inspect the error state using a local test or mock. A failed request should show a useful message and leave the user able to retry.
+Checkpoint: Demonstrate a successful exchange and a follow-up. Distinguish this basic chat check from the database retrieval check in the RAG workflow.
+
+Video 4: Final RAG Output
+final_rag_output.mov
+
+Open final_rag_output.mov in OneDrive (new tab)Links to an external site.
+
+
+If the player does not load, use the OneDrive link above.
+
+Important Steps
+Inspect the database schema in DB Explorer. Identify the columns and keys in the three hotel tables.
+Create prompts/hotel-assistant.md with the chatbot's purpose and the actual columns of saved_hotels, saved_hotel_zips, and demo_hotel_nights. Follow the refined instructions' separate prompt-file location rather than the earlier agents.md reference.
+Explain the first JOIN: connect saved_hotels to saved_hotel_zips through hotel_id to select hotels associated with the ZIP.
+Explain the second JOIN: connect those hotels to demo_hotel_nights through hotel_id to retrieve dated rates and availability.
+Include ZIP/date filters, available-room requirements, price ordering, cents-to-dollars conversion, and the simulated-data label. Missing date records mean availability is unknown.
+Load the prompt when the backend starts and include its instructions in relevant LLM requests. Restart the backend after editing the file.
+Use the first LLM request to propose SQL from the question and schema.
+Before execution, have the backend enforce a single read-only query against approved hotel tables, with row and execution-time limits.
+Send the original question and retrieved rows in a second LLM request. Instruct the model to answer from those records and acknowledge an empty result. Return the answer to the frontend.
+Create the conversation-history table. Store separate user and assistant messages with a message ID, conversation ID, timestamp, role, and content.
+Save clearly labeled records for generated SQL, executed SQL, a result summary, and errors as each step occurs. Keep these conversation writes separate from the model's read-only hotel queries.
+Checkpoint: Ask for the three cheapest available saved hotels near ZIP 16803 for October 11, 2026. Use DB Explorer to follow that conversation from input through both JOINs and retrieved rows to the answer. Check hotel names, prices, and the requested night against the database.
+
+Implementation note: Use prompts/hotel-assistant.md and load it at backend startup, as specified in the refined notes. The earlier agents.md wording below is preserved to match the recording.
+
+Original instructor notes: early five-point RAG outline
+Original instructor notes: refined RAG, JOINs, and conversation history
+Video 5: Final Manual Verification
+rag_final_manual_verification.mov
+
+Open rag_final_manual_verification.mov in OneDrive (new tab)Links to an external site.
+
+
+If the player does not load, use the OneDrive link above.
+
+Important Steps
+Run the example hotel query directly in DB Explorer. Compare those rows with the chatbot's answer for the same ZIP and date.
+Change the ZIP or date and repeat the comparison. Confirm that the query parameters and returned records change accordingly.
+Choose a ZIP/date combination with no matching available rooms. Check that the chatbot explains the result and does not invent hotels or prices. Specific alternatives must come from another lookup.
+Verify the SQL restrictions with a temporary test database or mock. Confirm that a write attempt is blocked without changing your course database.
+Refresh the page, then restart the backend. Inspect the saved conversation records and confirm that conversation history can be loaded again.
+Inspect a failed attempt in the history table. Confirm that its error is recorded and that no successful assistant reply was fabricated.
+Checkpoint: Keep evidence of a matching query, a no-match result, a blocked write, and persisted conversation history. Review the final diff and confirm that credentials and existing hotel records are preserved.
+
+Evidence to Keep
+Update docs/rag-context.md with your question, relevant schema, both JOIN relationships, generated SQL, retrieved rows, and final answer. Include the conversation ID so you can locate the same exchange in the database.
+
+A successful hotel lookup whose answer matches the database.
+A query with no matching records and an explanation of what is missing.
+A safe check showing that a model-proposed write is blocked.
+Conversation records with timestamps, roles, and content that remain after a refresh and backend restart.
+Be ready to explain what is retrieved, how those records augment the second request, and what the LLM generates. Use screenshots or short recordings of your own checks; keep credentials out of them.
