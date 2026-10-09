@@ -1,6 +1,17 @@
 # Saved-hotel RAG trace
 
-## Current version 5 trace — October 8, 2026
+## Current version 6 follow-up
+
+The [clarification and ZIP-only verification](assignment2-part2-stage7.md)
+records live Gemini calls against the recording fixture. A postcode-only
+question returned no saved hotel for ZIP 17042; ZIP 16803 returned Campus
+Lantern, Nittany Budget and Valley Ridge without asserting nightly availability.
+Missing dates for availability produced an editable clarification. Adding
+October 11 returned Campus $120 and Valley $130 with Budget excluded.
+The stored turn IDs and request/result/model-selection stages are in stage7;
+the earlier full two-night SQL/row trace below retains its actual version 5.
+
+## Historical version 5 trace — October 8, 2026
 
 The normal application made actual live Gemini calls over the synthetic
 `backend/db/part2-oct8-audit.sqlite3` fixture. The final turn after both

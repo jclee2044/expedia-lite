@@ -1,147 +1,131 @@
 # Expedia Lite current handoff
 
-Refreshed October 8, 2026 after repairing ZIP-only lookup/clarifications and updating
-the assessed application commit. Follow handoffs/create-handoff.md and
-AGENTS.md to reconstruct repository state before continuation.
+Final submission snapshot. Read AGENTS.md and handoffs/create-handoff.md,
+then verify Git/files/services before editing. The latest human request
+explicitly authorizes final report accuracy, handoff refresh, commit and push
+to the existing Expedia Lite repository.
 
-## Objective and decisions
+## Objective and current state
 
-Assignment 2.2 checked saved-hotel RAG is implemented. The latest repair
-allows simple identity questions such as “17042 has what hotels” without dates.
-Prices, rooms and availability still require dates. Missing context appears
-as a readable clarification with Edit question, including after reload,
-rather than Reply interrupted. Both lookup modes use the checked two-call
-flow. No dependency or schema change was made.
-The earlier animation remains intact: clicking Chat reveals the popup upward with a
-fade (320 ms), closing takes 200 ms, and reduced-motion users get no
-transition. The closed panel is inert, and draft preservation and keyboard
-focus remain intact. That earlier animation change did not alter backend behavior.
-Use Gemini 3.5 Flash-Lite for both application model requests. Preserve the
-neutral off-white assistant bubbles and the student's report edits.
+Assignment 2.2 is implemented: saved-local foundation plus question → Gemini
+SQL proposal → validated read-only SQLite retrieval → second Gemini request
+with the original question/checked records → validated, record-rendered answer.
+Provider: gemini-3.5-flash-lite. Prompt version 6. Codex disclosure: GPT-6.1 Sol,
+confirmed by the student.
 
-The report now includes Assignment 2.2 sample prompts and evidence links;
-its old sample-prompt TODO is resolved. Remaining work is the Part 2 video,
-instructor-access verification, final report review, and submission. Do not
-invent a recording link or claim submission. Publishing local commits is
-also pending; this request authorized local commits and documentation.
+Simple saved-hotel identity questions need a ZIP only. Price/availability
+questions need dates. Missing context shows More information needed and Edit
+question, also after reload. Preserve off-white #f7f7f7 assistant bubbles,
+320ms upward opening / 200ms closing animation, reduced-motion support,
+keyboard focus, drafts, saved data, course CSVs and frozen Part 1 behavior.
 
-## Architecture and important files
+The report now has the assessed application SHA, portable pinned source/image
+links, latest verification, linked AI prompt evidence, research/early mockup,
+actual SQL/records/answer and live-versus-mock labels. The student's concise
+report prose and historical d8edae8 baseline reference were preserved.
+The A2.2 recording exists (42,665,203 bytes) and is included in the final
+documentation commit, consistent with the repository's older assignment videos.
+Drive's sharing control says anyone with the link can access, no sign-in required.
+Its player loaded a 1:20 recording and a SQL-results frame around 0:33.
+The full clip/audio was not exhaustively reviewed; no signed-out session was
+created. The recording predates the latest ZIP-only/clarification follow-up;
+those behaviors have their own live trace and screenshots in stage7.
+
+Remaining student action: final report/video review and upload/submission.
+No Canvas submission has been performed or claimed.
+
+## Architecture and file map
 
 Vue View → FastAPI routes → framework-free Controllers → Models/SQLite.
-Vue presentation is separate from frontend/src/api request helpers.
 
-- frontend/src/components/ChatPopup.vue and frontend/src/assets/main.css:
-  chat presentation, keyboard controls, preserved draft, animation and motion override.
-- backend/app/: HTTP routes and JSON schemas.
-- backend/controllers/retrieval.py: bounded read-only SELECT validation,
-  independent nightly checks and saved-hotel count; ZIP-only identities use
-  the same read-only guard and independently checked ZIP membership.
-- backend/controllers/gemini.py and grounded_answer.py: two provider requests,
-  structured selection validation and database-rendered factual answers.
-- backend/controllers/rag_chat.py, chat_context.py, chat_history.py:
-  context, durable SQLite messages and trace; no unchecked reply delta.
-- backend/models/schema.py: schema version 7 and additive migrations.
-- backend/models/retrieval.py: separate HotelListRequest/HotelListResult and
-  StayRequest/RetrievalResult contracts; identity lists make no room/rate claim.
-- frontend/src/chat/replyFailure.js: common new/restored clarification state.
-- prompts/hotel-assistant.md: version 6 proposal/grounded-answer instructions.
-- docs/part2-rag-fixture.json and backend/prepare_rag_demo.py: synthetic fixture;
-  preparation refuses existing output databases. Preserve the default database.
-- docs/assignment2-part2-stage6.md and its commands/trace: historical integrated audit.
-- docs/assignment2-part2-demo.md: recording sequence.
-- docs/chat-animation-verification.md and chat-animation-preview.jpg:
-  historical animation evidence and command record.
-- docs/assignment2-part2-stage7.md and chat-zip-only/chat-clarification-fixed
-  screenshots: latest regression, live Gemini and clarification checks.
-- report.md: submission draft, assessed application SHA, completed prompt log,
-  and outstanding Part 2 video TODO.
+- backend/app/: HTTP/SSE routes and schemas.
+- backend/models/schema.py: schema 7 and additive migrations.
+- backend/models/retrieval.py: dated StayRequest/RetrievalResult and separate
+  HotelListRequest/HotelListResult; metadata does not assert room availability.
+- backend/controllers/saved_hotels.py: transactional Add/duplicate/Remove.
+- backend/controllers/retrieval.py: exact trusted binds; one bounded SELECT;
+  mode=ro/query_only/authorizer/time budget/50-candidate cap; independent ZIP,
+  nightly coverage/rooms/totals and saved count. Metadata reuses read-only guards.
+- backend/controllers/gemini.py, grounded_answer.py and rag_chat.py:
+  two model calls; structured selection; normal completion required;
+  buffer before validated text; checked facts rendered rather than model prose.
+- chat_context.py/chat_history.py: context, messages and versioned trace.
+- frontend/src/components/ChatPopup.vue and frontend/src/chat/replyFailure.js:
+  presentation and correct new/restored clarification states.
+- prompts/hotel-assistant.md: current version 6.
+- backend/prepare_rag_demo.py + docs/part2-rag-fixture.json: new synthetic DBs,
+  refuses overwrite. backend/inspect_rag_demo.py reads both request types.
+- docs/assignment2-part2-stage6.md and stage7.md: historical integrated audit
+  and latest identity/clarification checks. docs/chat-animation-verification.md:
+  animation checks and limits. docs/rag-context.md: current/historical traces.
+- docs/assignment2-part2-final-verification.md: final report/publish audit.
+- report.md, Expedia Lite A2.2 Demo.mov, and screenshot references: submission assets.
 
-## Verified Git state
+## Git evidence
 
 Root: /Users/jlee/Desktop/psu4/ist402/a1_expedia_lite.
 Branch: rag_integration, tracking origin/rag_integration.
-Application checkpoint: 2eae4985184dce0c8924e0791b94fa3fed5a23de
-(Support ZIP-only hotel chat and clarify missing dates). This contains the
-verified backend/frontend/prompt repair, tests and stage7 evidence.
-Earlier animation checkpoint: bbff2ca32b3eb29a98954343ebee2d23a4a8e2da.
-Earlier RAG milestone:
-23b9dc2; neutral off-white checkpoint: 1e6825a.
+Assessed tested application: 2eae4985184dce0c8924e0791b94fa3fed5a23de.
+Parent HEAD before the final documentation/media commit: 36060f5.
+The documentation commit containing this file follows those checkpoints.
+Use git log -1 and git status --short for its self-referential SHA/current state.
+git diff 2eae498 HEAD -- backend frontend prompts data must be empty.
+The report points to application source; the branch also contains final media/docs.
 
-This handoff and report form a subsequent documentation-only commit.
-Before that commit, report.md and handoffs/current.md have documentation
-updates; the student's A2.2 movie and DB Browser screenshot remain untracked
-and are not staged by this repair.
-The report includes pre-existing student edits reviewed and retained here.
-Use git log -2 --oneline and git status --short to identify the documentation
-commit and inspect remaining student files. Use git diff 2eae498 HEAD -- backend frontend
-prompts data to confirm the documentation commit did not change application code.
-The SHA in the report identifies application source, not this document's commit.
-
-No fetch or push was run by this repair, so actual remote state is unverified.
-Publishing local commits remains pending explicit approval after the earlier
-automatic approval review rejection. Origin is the
-public GitHub destination linked in report.md. Local main and cached origin/main
-were d8edae8; no branch switch, merge, PR, or remote change was requested.
+Before publishing, git ls-remote verified origin/rag_integration at bf7e1b8;
+local branch was ahead nine commits. The final push is now explicitly authorized
+by the latest user request. Confirm its actual outcome in the final audit and
+with git ls-remote --heads origin rag_integration; do not infer remote state
+solely from this pre-commit snapshot. No main merge, PR or branch switch was requested.
+No secrets, runtime databases, venv, node_modules, caches or build output are staged.
+Expected final checkout: clean after the authorized documentation/media commit.
+A later user edit can change that; always recheck.
 
 ## Observed verification
 
-Latest repair: full backend **174 passed** (two existing dependency warnings),
-frontend **28 passed**, read-only Oxlint/ESLint and production build passed
-(32 modules). The new identity suite passed 10 tests; the existing focused
-suite passed 40. There was no failed-test correction cycle or dependency change.
-Live Gemini in the normal recording app returned no saved hotel for ZIP
-17042 and all three saved names for ZIP 16803 without dates. Missing dates
-for availability produced a clarification; reload restored it with zero
-interrupted labels or failed placeholders; Edit restored the exact draft.
-Adding October 11 then returned Campus $120 and Valley $130, excluding Budget.
-Browser warning/error logs were empty. Read-only SQLite inspection matched
-the result/selection traces and found 3 hotels/3 ZIP links/6 nights, no FK errors.
-These prompt-6 turns and exact commands are in stage7. The temporary browser
-tab was closed; recording services remain running at the user's request.
+Latest source repair checks:
+- backend/.venv/bin/python -m pytest backend/tests -q: 174 passed,
+  two pre-existing dependency deprecation warnings.
+- frontend/: npm test: 28 passed; npm exec -- oxlint .;
+  npm exec -- eslint .; npm run build: passed (32 modules).
+- New identity suite: 10 passed; existing focused RAG suite: 40 passed.
+- Automated live Gemini/browser: ZIP 17042 no saved rows; ZIP 16803 all three
+  names without dates; missing-date clarification survives reload; Edit
+  restores exact draft; October 11 returns Campus $120 / Valley $130 and
+  excludes zero-room Budget. Browser warning/error logs empty.
+- Read-only recording DB: 3 saved hotels, 3 ZIP links, 6 nights, no FK violations.
+- Earlier stage6 evidence: two-night $230/$270, budget no-match, missing-night,
+  absent ZIP, CRUD/duplicate/persistence, map/list and keyboard, Harbor/blank/
+  no-results, mocked unsafe SQL/quota/bad-answer failures.
+- Final audit: no application-source differences from assessed SHA; report
+  source/assets exist at their pinned refs; no machine-local image paths;
+  source/verification/model fields consistent. Only documentation/media changed.
+Full tests were not needlessly rerun for these documentation edits.
+The final audit logs exact reads/checks/staging/commit/push and any limitations.
 
-For the animation implementation, npm test passed all 26 tests; npm exec --
-oxlint ., npm exec -- eslint ., and npm run build passed from frontend/.
-The build transformed 31 modules. The source has not changed since those
-checks. AutoLoop passed initially with zero correction cycles.
+## Active services
 
-Automated browser checks covered opening, question focus, Escape and close
-button, launcher focus restoration, draft preservation, and 390 × 844 layout.
-Browser warning/error logs were empty; the temporary tab was closed and viewport
-reset. Intermediate animation frames and reduced-motion browser emulation were
-not captured. Backend replies were not exercised for this UI change.
-The preview's session proxy logged connection refusals with no backend on 8000.
-A browser DOM animation-inspection attempt failed because getAnimations was
-unavailable through its inspection API. Details are in the animation record.
+Left running at the student's request for recording:
+- Backend session 75511 / PID 95962, 127.0.0.1:8001,
+  create_app(Path("backend/db/part2-recording.sqlite3")) via uvicorn.
+- Frontend session 70569 / PID 92029, 127.0.0.1:5174,
+  EXPEDIA_API_TARGET=http://127.0.0.1:8001 npm run dev
+  -- --host 127.0.0.1 --port 5174 --strictPort from frontend/.
+Reconfirm process ownership before managing services. No unrelated process
+was stopped. The default runtime database was never reset for the demo.
+Temporary verification tabs closed; DB Browser was opened on the recording DB
+and left with the read-only two-JOIN nightly comparison displayed.
 
-The earlier integrated audit records 164 backend tests, live Gemini over
-synthetic inventory, actual Geoapify place lookup, CRUD/persistence, mock
-failure cases and name-search regression. Those checks were not rerun during
-the animation commit/documentation turn. Current recording database contents
-were inspected during the subsequent stage7 repair, as described above.
+## Limits and next action
 
-## Services and limits
+Verified: tested implementation, current demo data, live/mocked distinctions,
+latest UI behavior, submission source/assets and Drive sharing label.
+Not established: exhaustive language/provider coverage, full clip/audio review,
+signed-out playback, reduced-motion emulation, full browser-process restart,
+or Canvas submission. Model preferences remain within the bounded contract;
+rates/rooms are simulated and no booking is made.
 
-Read-only lsof inspection found listeners on 5174 (node PID 92029) and
-8001 (Python PID 95962). The task-owned backend was restarted from session
-88606/PID 94017 to session 75511/PID 95962 against the same
-backend/db/part2-recording.sqlite3 database using create_app and uvicorn,
-host 127.0.0.1, port 8001. Existing Vite session 70569/PID 92029 proxies to
-8001 and serves 5174. Stage7 records the exact commands. No unrelated process
-was stopped, and no database was reset.
-The prior animation turn stopped only its own Vite server on 5173.
-
-Verified now: latest source checkpoint/diff, 174/28 checks, prompt-6 live flow,
-clarification reload/Edit behavior, stored result/selection traces, recording
-database counts, whitespace and port listeners. Historical animation checks
-remain as recorded above. Unverified: remote publication,
-video content/instructor access/submission, exhaustive provider failures,
-full browser-process restart, and reduced-motion browser emulation.
-No secrets, runtime database, dependency directory or build output were staged.
-
-## Recommended next action
-
-Read AGENTS.md, README.md, this handoff, docs/verification.md, the animation
-record, stage6, stage7 and recording guide. Verify Git/files/services and report any
-stale claims before editing. With user authorization, record the Part 2 flow
-using a fresh fixture or preserved existing audit database, add an accessible
-video link, review the report and submit it. Push only when authorized.
+Read the final audit and report. Verify the final push/cleanliness, review the
+recording, and upload report.md with its accessible video/source links. If any
+new code changes are requested, test the relevant behavior and update the
+assessed source pointer rather than pointing graders to an older baseline.
