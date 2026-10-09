@@ -21,6 +21,8 @@ the student. Earlier Part 2 records say GPT-6; their exact selector name is
 not independently established. Preserve the default database, synthetic
 course data, Part 1 behavior and the student's mockup reorganization.
 All keys remain in ignored root `.env`; no dependency change was made.
+The final assistant message background is neutral off-white `#f7f7f7`.
+The earlier warm off-white and cream previews were superseded by this choice.
 
 ## Architecture and files
 
@@ -61,18 +63,22 @@ Vue View → FastAPI routes → framework-free Controllers → Models/SQLite.
 
 Root: `/Users/jlee/Desktop/psu4/ist402/a1_expedia_lite`.
 Branch: `rag_integration`, tracking `origin/rag_integration`.
-Verified application HEAD: **`23b9dc21f7008a47538a3835cb09ea031e8c2746`**
-(`Implement checked saved-hotel RAG chat and verify Part 2 workflow`).
-This checkpoint includes 88 paths, preserving the pre-existing Part 2 source,
-tests, evidence and moved mockups. The remote branch matched this SHA.
-Anonymous GitHub API access returned 200 and `private=false`.
+Verified application HEAD: **`1e6825afc68f12b68c61a80e7f8968dd6d256d4b`**
+(`Use neutral off-white for assistant messages`). The working tree was clean
+immediately after this commit. It changes one CSS declaration and adds the
+final browser/build evidence plus clearly labeled historical cream previews.
+The earlier complete RAG checkpoint is `23b9dc2` (88 paths); its report and
+handoff commit is `bf7e1b8`. Both were previously pushed. Anonymous GitHub
+API access at that checkpoint returned 200 and `private=false`.
 
-This handoff/report/command log form a subsequent documentation-only commit.
+This handoff/report and updated verification log form a subsequent
+documentation-only commit.
 The SHA above identifies tested application source, not the self-referential
 commit containing this file. Before this documentation commit, only
-`report.md`, `handoffs/current.md` and the new command log were dirty.
+`report.md`, `handoffs/current.md` and the updated off-white verification
+log are expected documentation changes.
 Use `git log -2 --oneline`, `git status --short`, and
-`git diff 23b9dc2 HEAD -- backend frontend prompts data`
+`git diff 1e6825a HEAD -- backend frontend prompts data`
 to verify that later documentation did not alter tested code. Confirm the
 final remote SHA with `git ls-remote --heads origin rag_integration`.
 
@@ -83,6 +89,18 @@ Staged credential-pattern/path checks and whitespace checks passed after
 removing two extra final blank lines in documents.
 
 ## Completed work and observed checks
+
+The latest UI check built 31 modules successfully with `npm run build`
+from `frontend/`. Automated browser inspection restored saved messages,
+confirmed five assistant bubbles at `rgb(247,247,247)`, and found no console
+warnings/errors. Screenshot and command/results record:
+`docs/test-screenshots/chat-off-white-background.png` and `.txt`.
+No new model request or backend test run was needed for the CSS-only change.
+Its task-owned services and temporary tab were closed. The current refresh
+also found no listeners on the six project ports below.
+
+The full regression and live checks below belong to the earlier integrated
+audit at `23b9dc2`; they were not rerun while committing the color change.
 
 Two review defects were reproduced: free prose misplaced a nightly date,
 and filtered-empty candidates were mistaken for no saved hotels. Version 5

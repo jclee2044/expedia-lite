@@ -14,3 +14,28 @@ sessions 32195 and 45569; git diff --check && git diff -- frontend/src/assets/ma
 lsof -nP -iTCP:8001 -iTCP:5174 -sTCP:LISTEN.
 Both services exited, final port check found no listeners, and the temporary
 browser tab was closed. No source/test failures occurred.
+
+Commit/report/handoff update:
+Application checkpoint: 1e6825afc68f12b68c61a80e7f8968dd6d256d4b.
+The report assessed-commit link and handoff were updated to this checkpoint.
+No application source changed during the documentation update. Prior cream
+evidence was labeled historical. A JavaScript orchestration attempt failed
+before any command ran; the corrected read-only inspection succeeded.
+
+Shell commands for this update:
+git status --short && git log -2 --oneline && git diff -- frontend/src/assets/main.css && rg -n 'Assessed|23b9|bf7e|HEAD|dirty|off-white' report.md handoffs/current.md && cat handoffs/create-handoff.md
+cat AGENTS.md README.md docs/design-pipeline.md docs/verification.md prompts/hotel-assistant.md
+cat handoffs/current.md docs/test-screenshots/chat-off-white-background.txt docs/test-screenshots/chat-cream-background.txt; git rev-parse --show-toplevel; git branch -vv; git remote -v
+lsof -nP -iTCP:8000 -iTCP:8001 -iTCP:8002 -iTCP:5173 -iTCP:5174 -iTCP:5175 -sTCP:LISTEN
+git diff --check && git check-ignore .env backend/.venv frontend/node_modules frontend/dist
+git add -- frontend/src/assets/main.css docs/test-screenshots/chat-cream-background.png docs/test-screenshots/chat-cream-background.txt docs/test-screenshots/chat-off-white-background.png docs/test-screenshots/chat-off-white-background.txt
+git diff --cached --check && git diff --cached --stat
+git commit -m "Use neutral off-white for assistant messages"
+git rev-parse HEAD && git status --short
+git diff --check && git diff --stat && git diff 23b9dc2 HEAD -- frontend/src/assets/main.css && git diff 1e6825a HEAD -- backend frontend prompts data
+The project Python local-link/commit-reference check below was run next.
+git add -- report.md handoffs/current.md docs/test-screenshots/chat-off-white-background.txt
+git diff --cached --check && git diff --cached --stat
+git commit -m "Update assessed commit and handoff after chat styling"
+git push
+git status --short && git log -2 --format='%H %s' && git diff 1e6825a HEAD -- backend frontend prompts data && git ls-remote --heads origin rag_integration

@@ -12,7 +12,7 @@ define the scope. SQLite is sufficient; no vector database was added.
 
 Repository: [Expedia Lite](https://github.com/jclee2044/expedia-lite), branch
 `rag_integration`. **Assessed application commit:
-[`23b9dc2`](https://github.com/jclee2044/expedia-lite/commit/23b9dc21f7008a47538a3835cb09ea031e8c2746).**
+[`1e6825a`](https://github.com/jclee2044/expedia-lite/commit/1e6825afc68f12b68c61a80e7f8968dd6d256d4b).**
 This verified implementation checkpoint is pushed to the public repository.
 The report and handoff are saved in its subsequent documentation commit.
 
@@ -165,6 +165,12 @@ Campus as the lowest checked total. In particular, Valley's $140 nightly
 rate was attached to **October 12**, not October 14.
 
 ![Checked live two-night answer](docs/test-screenshots/part2-oct8-final-answer.png)
+
+The final UI refinement changes assistant bubbles to neutral off-white
+(`#f7f7f7`). Its [browser screenshot](docs/test-screenshots/chat-off-white-background.png)
+and [verification record](docs/test-screenshots/chat-off-white-background.txt)
+confirm the rendered color and a passing production build. This color-only
+change did not repeat the earlier full backend regression or live model calls.
 
 The [complete saved trace](docs/assignment2-part2-stage6-trace.txt) includes
 the original question, proposed SQL, records, second-model JSON and displayed
